@@ -1,0 +1,328 @@
+<title>How It All Connects</title>
+<!-- Shared head + style block. Copied verbatim into every page (artifacts must be self-contained). -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{--bg:#F2F5F4;--surface:#FFF;--surface-2:#E9EEEC;--line:#D2DCD9;--line-soft:#E2E9E7;--ink:#16211F;--ink-2:#3D4F4C;--muted:#647774;--accent:#0E6E63;--accent-2:#0A544B;--accent-wash:#E2F0ED;--brass:#A2691C;--brass-wash:#F7EDDF;--danger:#A03A31;--danger-wash:#F8E7E4;--measure:68ch;--radius:3px}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0D1413;--surface:#141F1D;--surface-2:#1B2725;--line:#2C3B38;--line-soft:#223230;--ink:#E6EDEB;--ink-2:#B7C6C3;--muted:#8B9D9A;--accent:#4FB5A6;--accent-2:#7FCFC2;--accent-wash:#122E2A;--brass:#D4A45E;--brass-wash:#2B2214;--danger:#E08A80;--danger-wash:#2E1A17}}
+:root[data-theme="dark"]{--bg:#0D1413;--surface:#141F1D;--surface-2:#1B2725;--line:#2C3B38;--line-soft:#223230;--ink:#E6EDEB;--ink-2:#B7C6C3;--muted:#8B9D9A;--accent:#4FB5A6;--accent-2:#7FCFC2;--accent-wash:#122E2A;--brass:#D4A45E;--brass-wash:#2B2214;--danger:#E08A80;--danger-wash:#2E1A17}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:"Public Sans",ui-sans-serif,system-ui,sans-serif;font-size:17px;line-height:1.65;margin:0;padding:0 20px 90px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:920px;margin:0 auto}
+h1,h2,h3{font-family:Spectral,ui-serif,Georgia,serif;text-wrap:balance;color:var(--ink);margin:0}
+h1{font-size:clamp(2rem,5vw,2.9rem);font-weight:700;line-height:1.1;letter-spacing:-.015em}
+h2{font-size:clamp(1.45rem,3vw,1.8rem);font-weight:600;line-height:1.22;letter-spacing:-.01em}
+h3{font-size:1.14rem;font-weight:600;line-height:1.3}
+p{margin:0;max-width:var(--measure)}
+.full p{max-width:none}
+a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:2px}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+strong{font-weight:600;color:var(--ink)}
+code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.88em;background:var(--surface-2);border:1px solid var(--line-soft);border-radius:2px;padding:.5px 5px;color:var(--ink-2)}
+.eyebrow{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.7rem;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.lede{font-family:Spectral,ui-serif,Georgia,serif;font-size:clamp(1.1rem,2vw,1.3rem);line-height:1.55;color:var(--ink-2);max-width:60ch}
+.stack-s{display:flex;flex-direction:column;gap:10px}
+section{display:flex;flex-direction:column;gap:18px}
+.sections{display:flex;flex-direction:column;gap:56px}
+header.masthead{display:flex;flex-direction:column;gap:20px;padding:34px 0 30px;border-bottom:2px solid var(--ink);margin-bottom:40px}
+.meta-row{display:flex;flex-wrap:wrap;gap:8px 24px;font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.73rem;color:var(--muted);letter-spacing:.03em}
+nav.pagenav{display:flex;flex-wrap:wrap;gap:6px;padding:22px 0 0}
+nav.pagenav a,nav.pagenav span{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.71rem;letter-spacing:.04em;padding:4px 9px;border:1px solid var(--line);border-radius:2px;background:var(--surface);color:var(--muted);text-decoration:none;white-space:nowrap}
+nav.pagenav a:hover{border-color:var(--accent);color:var(--accent)}
+nav.pagenav span.here{background:var(--accent-wash);border-color:var(--accent);color:var(--accent-2);font-weight:600}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:22px 24px;display:flex;flex-direction:column;gap:10px}
+.grid-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,265px),1fr));gap:16px}
+.grid-3{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:16px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;display:flex;flex-direction:column;gap:5px}
+.stat .num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:1.7rem;font-weight:600;line-height:1.05;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--ink)}
+.stat .cap{font-size:.86rem;color:var(--muted);line-height:1.4}
+.callout{border-radius:var(--radius);padding:20px 24px;display:flex;flex-direction:column;gap:10px;border:1px solid}
+.callout p{max-width:62ch}
+.callout.warn{background:var(--brass-wash);border-color:var(--brass)}
+.callout.risk{background:var(--danger-wash);border-color:var(--danger)}
+.callout.note{background:var(--accent-wash);border-color:var(--accent)}
+.callout .tag{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.7rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase}
+.callout.warn .tag{color:var(--brass)}.callout.risk .tag{color:var(--danger)}.callout.note .tag{color:var(--accent-2)}
+.verdict{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:var(--radius);padding:28px 30px;display:flex;flex-direction:column;gap:14px}
+.verdict h2{color:var(--accent-2)}
+.table-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:440px;font-size:.92rem}
+th,td{text-align:left;padding:11px 16px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+thead th{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.67rem;font-weight:600;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);background:var(--surface-2);border-bottom:1px solid var(--line);white-space:nowrap}
+tbody tr:last-child td{border-bottom:none}
+td.num,th.num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.highlight td{background:var(--accent-wash);font-weight:500}
+caption{caption-side:bottom;text-align:left;padding:10px 16px;font-size:.81rem;color:var(--muted);line-height:1.5}
+ul.clean{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:9px;max-width:var(--measure)}
+ul.clean>li{position:relative;padding-left:20px}
+ul.clean>li::before{content:"";position:absolute;left:3px;top:.66em;width:6px;height:1px;background:var(--accent)}
+ol.checks{margin:0;padding-left:1.25em;display:flex;flex-direction:column;gap:9px;max-width:var(--measure)}
+ol.checks li::marker{font-family:"IBM Plex Mono",ui-monospace,monospace;color:var(--accent);font-size:.85em}
+.kicker{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.72rem;letter-spacing:.05em;color:var(--muted);background:var(--surface-2);border:1px solid var(--line-soft);border-radius:2px;padding:1px 7px;white-space:nowrap}
+footer.colophon{margin-top:70px;padding-top:26px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:12px;font-size:.87rem;color:var(--muted)}
+footer.colophon a{color:var(--muted)}
+.phases{display:flex;flex-direction:column;gap:2px}
+.phase{display:grid;grid-template-columns:58px minmax(0,1fr);gap:0 20px;background:var(--surface);border:1px solid var(--line);padding:22px 24px;align-items:start}
+.phase:first-child{border-radius:var(--radius) var(--radius) 0 0}
+.phase:last-child{border-radius:0 0 var(--radius) var(--radius)}
+.phase+.phase{border-top:none}
+.phase .n{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:1.5rem;font-weight:600;color:var(--accent);line-height:1;font-variant-numeric:tabular-nums;padding-top:2px}
+.phase .body{display:flex;flex-direction:column;gap:8px}
+.phase .when{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.71rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+@media (max-width:560px){body{font-size:16px;padding:0 16px 70px}.verdict{padding:22px 20px}.phase{grid-template-columns:38px minmax(0,1fr);gap:0 14px;padding:20px 18px}.phase .n{font-size:1.2rem}}
+</style>
+
+<div class="wrap">
+<header class="masthead">
+  <div class="stack-s">
+    <span class="eyebrow">Part 9 of 9 · Demo guide · Verified live 11 Sep 2026</span>
+    <h1>How it all connects</h1>
+  </div>
+  <p class="lede">Everything below was read from our own live account, including a real WhatsApp conversation the AI handled this afternoon. This is the page to walk a client through.</p>
+  <nav class="pagenav"><a href="index.html">1 - Verdict</a><a href="02-product.html">2 - Product</a><a href="03-pricing.html">3 - Pricing</a><a href="04-our-account.html">4 - Our Account</a><a href="05-reseller.html">5 - Reseller</a><a href="06-build-vs-buy.html">6 - Build vs Buy</a><a href="07-ai-costs.html">7 - AI Costs</a><a href="08-alternatives.html">8 - Alternatives</a><span class="here">9 - Demo Guide</span></nav>
+</header>
+
+<div class="sections">
+
+<section>
+  <div class="stack-s"><span class="eyebrow">The mental model</span><h2>Four layers, and only four</h2></div>
+  <p>Almost every question about this product answers itself once these four boxes are clear. Channels are how messages arrive. The agent is the brain. The knowledge base is what it knows. Actions are what it can <em>do</em> besides talk.</p>
+
+  <div class="table-scroll full" style="padding:18px 8px">
+    <svg viewBox="0 0 900 300" style="width:100%;height:auto;min-width:620px" role="img" aria-label="Diagram: channels feed the AI agent, which draws on the knowledge base, performs actions, and writes to the inbox and CRM">
+      <defs>
+        <marker id="ah" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto">
+          <path d="M0,0 L7,3.2 L0,6.4 z" fill="var(--accent)"/>
+        </marker>
+      </defs>
+
+      <rect x="15" y="45" width="155" height="82" rx="3" fill="var(--surface)" stroke="var(--line)"/>
+      <text x="92" y="70" text-anchor="middle" font-family="Spectral, serif" font-size="14" font-weight="600" fill="var(--ink)">Channels</text>
+      <text x="92" y="90" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--muted)">WhatsApp · Instagram</text>
+      <text x="92" y="104" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--muted)">Web chat · Email · SMS</text>
+      <text x="92" y="118" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--muted)">Messenger · Telegram</text>
+
+      <rect x="230" y="45" width="180" height="82" rx="3" fill="var(--accent-wash)" stroke="var(--accent)" stroke-width="1.5"/>
+      <text x="320" y="70" text-anchor="middle" font-family="Spectral, serif" font-size="14" font-weight="600" fill="var(--accent-2)">The AI agent</text>
+      <text x="320" y="90" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--ink-2)">&#8220;Tia | ATC&#8221;</text>
+      <text x="320" y="104" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--ink-2)">persona · rules · flow</text>
+      <text x="320" y="118" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--ink-2)">model tier: MAX</text>
+
+      <rect x="470" y="45" width="165" height="82" rx="3" fill="var(--surface)" stroke="var(--line)"/>
+      <text x="552" y="70" text-anchor="middle" font-family="Spectral, serif" font-size="14" font-weight="600" fill="var(--ink)">Actions</text>
+      <text x="552" y="90" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--muted)">book a call · alert human</text>
+      <text x="552" y="104" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--muted)">create task · tag contact</text>
+      <text x="552" y="118" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--muted)">call our own API</text>
+
+      <rect x="695" y="45" width="170" height="82" rx="3" fill="var(--surface)" stroke="var(--line)"/>
+      <text x="780" y="70" text-anchor="middle" font-family="Spectral, serif" font-size="14" font-weight="600" fill="var(--ink)">Inbox &amp; CRM</text>
+      <text x="780" y="90" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--muted)">one shared inbox</text>
+      <text x="780" y="104" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--muted)">contacts · deals · tasks</text>
+      <text x="780" y="118" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--muted)">a human can take over</text>
+
+      <line x1="172" y1="86" x2="222" y2="86" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#ah)"/>
+      <line x1="412" y1="86" x2="462" y2="86" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#ah)"/>
+      <line x1="637" y1="86" x2="687" y2="86" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#ah)"/>
+
+      <rect x="230" y="205" width="180" height="70" rx="3" fill="var(--surface)" stroke="var(--line)"/>
+      <text x="320" y="228" text-anchor="middle" font-family="Spectral, serif" font-size="14" font-weight="600" fill="var(--ink)">Knowledge base</text>
+      <text x="320" y="247" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--muted)">59 pages crawled once</text>
+      <text x="320" y="261" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--muted)">&#8594; 129 stored FAQs</text>
+
+      <line x1="320" y1="203" x2="320" y2="131" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#ah)"/>
+      <text x="336" y="172" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--muted)">looks up answers</text>
+
+      <text x="92" y="232" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--muted)">A customer messages</text>
+      <text x="92" y="246" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--muted)">on any of these</text>
+      <text x="780" y="232" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--muted)">Everything lands here,</text>
+      <text x="780" y="246" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--muted)">whatever the channel</text>
+    </svg>
+  </div>
+</section>
+
+<section>
+  <div class="stack-s"><span class="eyebrow">The question everyone asks</span><h2>The website is not "connected"</h2></div>
+
+  <div class="callout note">
+    <span class="tag">This is the bit that surprises people</span>
+    <p>The AI does <strong>not</strong> visit altaherchemicals.com when someone asks a question. The site was <strong>crawled once</strong>, and the crawler turned its content into a library of question-and-answer pairs. The AI answers out of that stored library.</p>
+  </div>
+
+  <p>In our account right now, under <strong>AI Studio → Knowledge Base</strong>:</p>
+
+  <div class="grid-3">
+    <div class="stat"><span class="num">59</span><span class="cap">Pages read from altaherchemicals.com</span></div>
+    <div class="stat"><span class="num">129</span><span class="cap">FAQs the AI generated from them</span></div>
+    <div class="stat"><span class="num">25&#215;</span><span class="cap">Times the most-used FAQ has been drawn on</span></div>
+  </div>
+
+  <p>Every FAQ is editable, and each shows a usage count, so you can see which answers are actually earning their place. You can also write FAQs by hand for things that were never on the website — pricing rules, lead times, "we don't ship there".</p>
+
+  <h3>Why this matters commercially</h3>
+  <ul class="clean">
+    <li><strong>Change the website and the AI won't know.</strong> Someone has to press <strong>Refresh</strong> on the source to re-crawl. This is a real operational task we'd owe every client, and worth charging for.</li>
+    <li><strong>It costs about 1 credit per page</strong> to ingest. 59 pages ≈ 59 credits ≈ $5.90 of setup for this one client.</li>
+    <li><strong>Bad website in, bad answers out.</strong> If a client's site is thin or out of date, the AI inherits that. Auditing the site is part of onboarding, not an afterthought.</li>
+  </ul>
+
+  <p>You can prove the link live: FAQ #45 in the library says Al Taher has <em>"over 20 years of experience"</em> across the GCC, and FAQ #50 lists <em>"conventional and catalytic bright chrome"</em>. Both phrases came straight back out of the AI in this afternoon's real conversation, below.</p>
+</section>
+
+<section>
+  <div class="stack-s"><span class="eyebrow">Live proof</span><h2>A real conversation, this afternoon</h2></div>
+  <p>A missed call to our paired number at 2:53 PM. No human touched any of this.</p>
+
+  <div class="table-scroll full">
+    <table>
+      <thead><tr><th class="num">Time</th><th>Who</th><th>Message</th></tr></thead>
+      <tbody>
+        <tr><td class="num">2:53</td><td><span class="kicker">system</span></td><td><em>Missed voice call</em></td></tr>
+        <tr><td class="num">2:53</td><td><span class="kicker">AI</span></td><td>"Sorry we missed your call. How can we help? Reply here and we'll get back to you right away."</td></tr>
+        <tr><td class="num">2:54</td><td>Caller</td><td>"What kind of service are you providing"</td></tr>
+        <tr class="highlight"><td class="num">2:54</td><td><span class="kicker">AI</span></td><td>"We supply industrial chemicals for metal finishing, electroplating, hot dip galvanizing and coatings, backed by over 20 years in the GCC" — then: "What kind of project are you working on right now?"</td></tr>
+        <tr><td class="num">2:54</td><td>Caller</td><td>"Elegant"</td></tr>
+        <tr><td class="num">2:54</td><td><span class="kicker">AI</span></td><td>"Sorry, I want to make sure I follow you. Are you looking for an elegant decorative finish on your parts, like bright chrome or nickel?"</td></tr>
+        <tr><td class="num">2:55</td><td>Caller</td><td>"Yes yes"</td></tr>
+        <tr><td class="num">2:56</td><td>Caller</td><td>"I am looking for Chrome plating in utensils that normally we are using in cooking. Also we need to check plating for car accessories"</td></tr>
+        <tr class="highlight"><td class="num">2:57</td><td><span class="kicker">AI</span></td><td>"The cookware side is a little different, since it's food-contact and I don't want to point you to the wrong chemistry there. For now, can you tell me what material the car accessory parts are made from?"</td></tr>
+      </tbody>
+      <caption>A follow-up was then auto-scheduled for three hours later.</caption>
+    </table>
+  </div>
+
+  <p><strong>Show a client the last line.</strong> The AI recognised that food-contact chemistry is a question it should not guess at, said so plainly, and steered back to the part it could help with — while still holding the lead. That is the single most persuasive thing in this account, and it is much harder to build than it looks.</p>
+
+  <p>Also worth pointing at: it recovered from a one-word reply ("Elegant") by asking a clarifying question rather than guessing, and it split each turn into two short bubbles like a person typing — not one wall of text.</p>
+</section>
+
+<section>
+  <div class="stack-s"><span class="eyebrow">Channels</span><h2>How each one gets connected</h2></div>
+  <p>All of it lives in <strong>Settings → Channels</strong>. The effort varies enormously, and that difference is most of what a client is really buying.</p>
+
+  <div class="table-scroll full">
+    <table>
+      <thead><tr><th>Channel</th><th>How it connects</th><th>Approval needed?</th><th class="num">Realistic time</th></tr></thead>
+      <tbody>
+        <tr class="highlight"><td><strong>WhatsApp Web</strong></td><td>Scan a QR code with the phone's WhatsApp — exactly like WhatsApp Web on a laptop</td><td><strong>None</strong></td><td class="num">2 minutes</td></tr>
+        <tr><td>Website chat widget</td><td>Copy an embed snippet into the site</td><td>None</td><td class="num">10 minutes</td></tr>
+        <tr><td>Telegram</td><td>Connect a Telegram account</td><td>None</td><td class="num">Minutes</td></tr>
+        <tr><td><strong>WhatsApp Business API</strong></td><td>Buy a managed number, or bring a Meta Cloud API number</td><td><strong>Meta Business Verification</strong></td><td class="num">3–10 days</td></tr>
+        <tr><td><strong>Instagram &amp; Messenger</strong></td><td>Official Meta connection via a Facebook Page</td><td><strong>Meta App Review</strong></td><td class="num">Weeks, can be rejected</td></tr>
+        <tr><td>SMS</td><td>Bring your own Twilio account</td><td>Regulated regions only</td><td class="num">Hours–days</td></tr>
+        <tr><td>Email</td><td>Gmail / Outlook / IMAP mailbox</td><td>None</td><td class="num">Minutes <span class="kicker">beta</span></td></tr>
+        <tr><td>Custom channel</td><td>Point it at a webhook URL; the AI's replies are POSTed to us</td><td>None</td><td class="num">A developer day</td></tr>
+      </tbody>
+      <caption>Also listed: LINE, Viber, Android SMS Gateway, iMessage (private beta), Instagram Personal (private beta).</caption>
+    </table>
+  </div>
+
+  <div class="callout note">
+    <span class="tag">The shortcut worth knowing</span>
+    <p><strong>WhatsApp Web is the demo weapon.</strong> It needs no Meta approval, no Business API, no number purchase — just a QR scan, and a real WhatsApp number is live in about two minutes. That's how our number got connected today.</p>
+    <p>Its trade-off: each number <strong>warms up over about 60 days</strong>, with a rising daily cap. Ours is on day 1 — <strong>50 messages/day</strong>, and cold outreach is disabled until it matures. Inbound conversations work fine, which is all a demo needs. For a client in production at volume, the Business API is still the right answer.</p>
+  </div>
+
+  <h3>Where the agent meets the channel</h3>
+  <p>An agent is assigned to channels, not tied to one. Our agents list says plainly: <strong>"Tia | ATC answers all 2 connected channels."</strong> One brain, every inbox. Connect Instagram tomorrow and the same agent covers it with no extra setup — that's the whole pitch in one sentence.</p>
+</section>
+
+<section>
+  <div class="stack-s"><span class="eyebrow">Hands on</span><h2>Three ways to test it</h2></div>
+  <div class="grid-3">
+    <div class="card">
+      <h3>1 · Try Out tab</h3>
+      <p>Open the agent → last step, <strong>Try Out</strong>. A sandbox chat with no channel and no real contact. Safest place to test wording changes.</p>
+    </div>
+    <div class="card">
+      <h3>2 · The website widget</h3>
+      <p><strong>Settings → Channels → Website chat widget → Manage.</strong> Already connected, 37 messages sent. Shows what a site visitor sees.</p>
+    </div>
+    <div class="card">
+      <h3>3 · Real WhatsApp</h3>
+      <p>Message <strong>+91 91093 32714</strong> from a different phone, or ring it and hang up to trigger the missed-call text-back. Replies land in <strong>Chats</strong>.</p>
+    </div>
+  </div>
+  <p>In all three the conversation appears in <strong>Chats</strong>, where a human can read along and take over at any point — the AI pauses the moment a person replies, and that handover is worth demonstrating live.</p>
+</section>
+
+<section>
+  <div class="stack-s"><span class="eyebrow">Before the call</span><h2>Two things that could spoil the demo</h2></div>
+  <div class="callout risk">
+    <span class="tag">Check both an hour before</span>
+    <p><strong>Credits are down to 39.</strong> Every AI action — each reply, each tool call, each name or email extraction, each daily summary — bills separately, so real usage runs about 0.5 credits per visible reply. That's roughly <strong>70–80 replies left</strong>. A live demo plus a chatty client could exhaust it mid-meeting, and when credits hit zero <strong>the AI simply stops replying</strong> with no warning to the person messaging. Top up first.</p>
+    <p><strong>The number is on day 1 of a 60-day warm-up.</strong> 50 messages/day and no cold outreach. Fine for a demo; say it out loud before the client discovers it, and frame it as a WhatsApp anti-spam protection rather than a product limit — which is what it is.</p>
+  </div>
+</section>
+
+<section>
+  <div class="stack-s"><span class="eyebrow">For the meeting</span><h2>An honest pros and cons</h2></div>
+  <div class="grid-2">
+    <div class="card">
+      <h3>What's genuinely good</h3>
+      <ul class="clean">
+        <li><strong>Setup really is fast.</strong> Paste a URL, get a working agent. 59 pages became 129 answers with no prompt engineering.</li>
+        <li><strong>It doesn't read like a bot.</strong> Split messages, typing delays, clarifying questions instead of guessing.</li>
+        <li><strong>It knows what it doesn't know</strong> — the food-contact moment above.</li>
+        <li><strong>One agent covers every channel</strong>, and a human can take over in the same inbox.</li>
+        <li><strong>WhatsApp with no Meta approval</strong> via QR — genuinely rare.</li>
+        <li><strong>It can call our own systems</strong> through Custom Functions, so answers can come from live data, not just the crawl.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>What to be upfront about</h3>
+      <ul class="clean">
+        <li><strong>Credit costs run ~2× the headline rate</strong> because every tool call and extraction bills separately.</li>
+        <li><strong>The knowledge base goes stale</strong> until someone re-crawls. It is not live.</li>
+        <li><strong>Instagram and Messenger need Meta App Review</strong> — weeks, and rejections are common. Untested on our account.</li>
+        <li><strong>Contacts can show as "Unknown Unknown"</strong> — a Meta limitation, but it looks unpolished in the inbox.</li>
+        <li><strong>WhatsApp Web numbers are rate-limited for 60 days.</strong></li>
+        <li><strong>The vendor is three people.</strong> Bootstrapped and profitable, but small.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="stack-s"><span class="eyebrow">The other option</span><h2>Would MeshAPI let us build this instead?</h2></div>
+  <p><strong>MeshAPI is a model gateway, not a product.</strong> One OpenAI-compatible key gives access to 1,000+ models across OpenAI, Anthropic, Google, Meta, Mistral and DeepSeek, with smart routing, automatic failover between providers, response caching and per-request logs. You change two lines — the base URL and the key.</p>
+  <p>For an India-based team it's a genuinely sensible choice: <strong>pay in rupees by UPI, from ₹1</strong>, one balance instead of a card on file with four foreign providers, and no platform fee on top of model cost.</p>
+
+  <div class="callout warn">
+    <span class="tag">But be clear what it replaces</span>
+    <p>Look back at the diagram. MeshAPI supplies <strong>one part of one box</strong> — the model behind the agent. It provides <strong>no</strong> WhatsApp connection, no Instagram, no inbox, no contacts or CRM, no knowledge-base crawler, no follow-up scheduling, no multi-client white-label layer.</p>
+    <p>Those are the months of work. The model API was always the cheap, easy part — at realistic volume the model bill is <strong>single-digit dollars per month</strong>, while hosting and infrastructure are ten to twenty times that.</p>
+  </div>
+
+  <p>So MeshAPI doesn't shorten a build from months to weeks; it makes one small line item cheaper and easier to pay for. If we do build, use it. It is not a reason to build.</p>
+  <p>The fuller build-versus-buy case is in <strong>part 6</strong>, and the open-source starting point — fork Chatwoot, which is MIT-licensed and may be freely rebranded and resold — is in the notes accompanying this report.</p>
+</section>
+
+<section>
+  <div class="stack-s"><span class="eyebrow">Running the call</span><h2>A demo order that works</h2></div>
+  <div class="phases">
+    <div class="phase"><span class="n">01</span><div class="body">
+      <span class="when">Open with the outcome, not the software</span>
+      <h3>Show the transcript first</h3>
+      <p>Put the missed-call conversation on screen before showing a single settings page. Let them read the food-contact line. Ask: "how long would a salesperson have taken to reply to that call?"</p>
+    </div></div>
+    <div class="phase"><span class="n">02</span><div class="body">
+      <span class="when">Then make it real</span>
+      <h3>Have them message the number live</h3>
+      <p>+91 91093 32714, from their own phone, during the call. Nothing convinces like watching it reply to <em>their</em> question. Keep it to a few messages — credits.</p>
+    </div></div>
+    <div class="phase"><span class="n">03</span><div class="body">
+      <span class="when">Now explain the machinery</span>
+      <h3>Walk the four boxes</h3>
+      <p>Channels → agent → knowledge → actions. Then open the Knowledge Base and show 59 pages became 129 answers. That's the moment the pricing makes sense to them.</p>
+    </div></div>
+    <div class="phase"><span class="n">04</span><div class="body">
+      <span class="when">Close honestly</span>
+      <h3>Name the limits yourself</h3>
+      <p>Stale knowledge until refreshed, Meta approval for Instagram, warm-up caps, credit costs. Raising them first makes everything else you said more credible — and each one is a service we can charge to manage.</p>
+    </div></div>
+  </div>
+</section>
+
+</div>
+</div>

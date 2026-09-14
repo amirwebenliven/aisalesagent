@@ -1,0 +1,21 @@
+node_modules/
+.next/
+out/
+build/
+dist/
+
+# Secrets. ENCRYPTION_KEY lives here — losing it makes every stored
+# credential unrecoverable, so back it up somewhere that is not git.
+.env
+.env.local
+.env*.local
+
+*.log
+.DS_Store
+.vscode/
+.idea/
+next-env.d.ts
+*.tsbuildinfo
+
+# Research lives in its own folder and is not part of the app build.
+research/pages/_src/

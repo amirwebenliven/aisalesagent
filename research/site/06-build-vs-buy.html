@@ -1,0 +1,192 @@
+<title>Build or Buy the Platform</title>
+<!-- Shared head + style block. Copied verbatim into every page (artifacts must be self-contained). -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{--bg:#F2F5F4;--surface:#FFF;--surface-2:#E9EEEC;--line:#D2DCD9;--line-soft:#E2E9E7;--ink:#16211F;--ink-2:#3D4F4C;--muted:#647774;--accent:#0E6E63;--accent-2:#0A544B;--accent-wash:#E2F0ED;--brass:#A2691C;--brass-wash:#F7EDDF;--danger:#A03A31;--danger-wash:#F8E7E4;--measure:68ch;--radius:3px}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0D1413;--surface:#141F1D;--surface-2:#1B2725;--line:#2C3B38;--line-soft:#223230;--ink:#E6EDEB;--ink-2:#B7C6C3;--muted:#8B9D9A;--accent:#4FB5A6;--accent-2:#7FCFC2;--accent-wash:#122E2A;--brass:#D4A45E;--brass-wash:#2B2214;--danger:#E08A80;--danger-wash:#2E1A17}}
+:root[data-theme="dark"]{--bg:#0D1413;--surface:#141F1D;--surface-2:#1B2725;--line:#2C3B38;--line-soft:#223230;--ink:#E6EDEB;--ink-2:#B7C6C3;--muted:#8B9D9A;--accent:#4FB5A6;--accent-2:#7FCFC2;--accent-wash:#122E2A;--brass:#D4A45E;--brass-wash:#2B2214;--danger:#E08A80;--danger-wash:#2E1A17}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:"Public Sans",ui-sans-serif,system-ui,sans-serif;font-size:17px;line-height:1.65;margin:0;padding:0 20px 90px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:920px;margin:0 auto}
+h1,h2,h3{font-family:Spectral,ui-serif,Georgia,serif;text-wrap:balance;color:var(--ink);margin:0}
+h1{font-size:clamp(2rem,5vw,2.9rem);font-weight:700;line-height:1.1;letter-spacing:-.015em}
+h2{font-size:clamp(1.45rem,3vw,1.8rem);font-weight:600;line-height:1.22;letter-spacing:-.01em}
+h3{font-size:1.14rem;font-weight:600;line-height:1.3}
+p{margin:0;max-width:var(--measure)}
+.full p{max-width:none}
+a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:2px}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+strong{font-weight:600;color:var(--ink)}
+code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.88em;background:var(--surface-2);border:1px solid var(--line-soft);border-radius:2px;padding:.5px 5px;color:var(--ink-2)}
+.eyebrow{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.7rem;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.lede{font-family:Spectral,ui-serif,Georgia,serif;font-size:clamp(1.1rem,2vw,1.3rem);line-height:1.55;color:var(--ink-2);max-width:60ch}
+.stack-s{display:flex;flex-direction:column;gap:10px}
+section{display:flex;flex-direction:column;gap:18px}
+.sections{display:flex;flex-direction:column;gap:56px}
+header.masthead{display:flex;flex-direction:column;gap:20px;padding:34px 0 30px;border-bottom:2px solid var(--ink);margin-bottom:40px}
+.meta-row{display:flex;flex-wrap:wrap;gap:8px 24px;font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.73rem;color:var(--muted);letter-spacing:.03em}
+nav.pagenav{display:flex;flex-wrap:wrap;gap:6px;padding:22px 0 0}
+nav.pagenav a,nav.pagenav span{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.71rem;letter-spacing:.04em;padding:4px 9px;border:1px solid var(--line);border-radius:2px;background:var(--surface);color:var(--muted);text-decoration:none;white-space:nowrap}
+nav.pagenav a:hover{border-color:var(--accent);color:var(--accent)}
+nav.pagenav span.here{background:var(--accent-wash);border-color:var(--accent);color:var(--accent-2);font-weight:600}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:22px 24px;display:flex;flex-direction:column;gap:10px}
+.grid-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,265px),1fr));gap:16px}
+.grid-3{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:16px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;display:flex;flex-direction:column;gap:5px}
+.stat .num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:1.7rem;font-weight:600;line-height:1.05;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--ink)}
+.stat .cap{font-size:.86rem;color:var(--muted);line-height:1.4}
+.callout{border-radius:var(--radius);padding:20px 24px;display:flex;flex-direction:column;gap:10px;border:1px solid}
+.callout p{max-width:62ch}
+.callout.warn{background:var(--brass-wash);border-color:var(--brass)}
+.callout.risk{background:var(--danger-wash);border-color:var(--danger)}
+.callout.note{background:var(--accent-wash);border-color:var(--accent)}
+.callout .tag{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.7rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase}
+.callout.warn .tag{color:var(--brass)}.callout.risk .tag{color:var(--danger)}.callout.note .tag{color:var(--accent-2)}
+.verdict{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:var(--radius);padding:28px 30px;display:flex;flex-direction:column;gap:14px}
+.verdict h2{color:var(--accent-2)}
+.table-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:440px;font-size:.92rem}
+th,td{text-align:left;padding:11px 16px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+thead th{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.67rem;font-weight:600;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);background:var(--surface-2);border-bottom:1px solid var(--line);white-space:nowrap}
+tbody tr:last-child td{border-bottom:none}
+td.num,th.num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.highlight td{background:var(--accent-wash);font-weight:500}
+caption{caption-side:bottom;text-align:left;padding:10px 16px;font-size:.81rem;color:var(--muted);line-height:1.5}
+ul.clean{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:9px;max-width:var(--measure)}
+ul.clean>li{position:relative;padding-left:20px}
+ul.clean>li::before{content:"";position:absolute;left:3px;top:.66em;width:6px;height:1px;background:var(--accent)}
+ol.checks{margin:0;padding-left:1.25em;display:flex;flex-direction:column;gap:9px;max-width:var(--measure)}
+ol.checks li::marker{font-family:"IBM Plex Mono",ui-monospace,monospace;color:var(--accent);font-size:.85em}
+.kicker{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.72rem;letter-spacing:.05em;color:var(--muted);background:var(--surface-2);border:1px solid var(--line-soft);border-radius:2px;padding:1px 7px;white-space:nowrap}
+footer.colophon{margin-top:70px;padding-top:26px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:12px;font-size:.87rem;color:var(--muted)}
+footer.colophon a{color:var(--muted)}
+.phases{display:flex;flex-direction:column;gap:2px}
+.phase{display:grid;grid-template-columns:58px minmax(0,1fr);gap:0 20px;background:var(--surface);border:1px solid var(--line);padding:22px 24px;align-items:start}
+.phase:first-child{border-radius:var(--radius) var(--radius) 0 0}
+.phase:last-child{border-radius:0 0 var(--radius) var(--radius)}
+.phase+.phase{border-top:none}
+.phase .n{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:1.5rem;font-weight:600;color:var(--accent);line-height:1;font-variant-numeric:tabular-nums;padding-top:2px}
+.phase .body{display:flex;flex-direction:column;gap:8px}
+.phase .when{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.71rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+@media (max-width:560px){body{font-size:16px;padding:0 16px 70px}.verdict{padding:22px 20px}.phase{grid-template-columns:38px minmax(0,1fr);gap:0 14px;padding:20px 18px}.phase .n{font-size:1.2rem}}
+</style>
+
+<div class="wrap">
+<header class="masthead">
+  <div class="stack-s">
+    <span class="eyebrow">Part 6 of 8 · The decision</span>
+    <h1>Build or buy the platform</h1>
+  </div>
+  <p class="lede">The question the boss asked: can we create a product like theirs, or is theirs cheap enough to just use? Theirs is dramatically cheaper, and the gap is not close.</p>
+  <nav class="pagenav"><a href="index.html">1 - Verdict</a><a href="02-product.html">2 - Product</a><a href="03-pricing.html">3 - Pricing</a><a href="04-our-account.html">4 - Our Account</a><a href="05-reseller.html">5 - Reseller</a><span class="here">6 - Build vs Buy</span><a href="07-ai-costs.html">7 - AI Costs</a><a href="08-alternatives.html">8 - Alternatives</a><a href="09-demo-guide.html">9 - Demo Guide</a></nav>
+</header>
+
+<div class="sections">
+
+<section>
+  <div class="stack-s"><span class="eyebrow">Scope</span><h2>Four systems, not one</h2></div>
+  <p>The part that <em>feels</em> like the product is the smallest slice of the work. That asymmetry is the whole trap.</p>
+  <div class="grid-2">
+    <div class="card">
+      <h3>1 · The AI agent layer</h3>
+      <p><span class="kicker">4–8 weeks</span></p>
+      <p>Prompt orchestration, knowledge retrieval, conversation memory with summarisation, tool calling, human handoff, the URL-to-playbook crawler. Genuinely tractable with a modern LLM API. The realism tricks — reply delays, message splitting, simulated typing — are simple to copy once you know they matter. <strong>This is the easy part.</strong></p>
+    </div>
+    <div class="card">
+      <h3>2 · Omnichannel messaging</h3>
+      <p><span class="kicker">3–6 months</span></p>
+      <p>WhatsApp Cloud API, Instagram Messaging, Messenger, Telegram, Twilio SMS, IMAP/Gmail/Outlook, a web chat widget. Each has its own webhook contract, message format, media handling, delivery receipts, rate limits and 24-hour-window rules — and Meta changes them constantly. Permanent maintenance.</p>
+    </div>
+    <div class="card">
+      <h3>3 · Multi-tenant white-label</h3>
+      <p><span class="kicker">3–5 months</span></p>
+      <p>Everything in part 5: tenant isolation, per-tenant theming, custom domains with automated certificate renewal, impersonation with audit trails, a credit ledger with per-client markup and atomic double-deduction, Stripe billing, snapshots. Security-sensitive, tedious, invisible until it breaks.</p>
+    </div>
+    <div class="card">
+      <h3>4 · The application</h3>
+      <p><span class="kicker">3–6 months</span></p>
+      <p>Unified inbox, contact CRM, campaign builder, booking with calendar sync, pipeline, analytics, REST API, webhooks, admin tooling.</p>
+    </div>
+  </div>
+  <p><strong>Total to genuine parity: 12–24 months with two or more developers.</strong> A narrow MVP — WhatsApp plus web chat, one AI agent, a basic inbox, no white-label — is maybe <strong>3–4 months for two developers</strong>, and would not yet be resellable.</p>
+</section>
+
+<section>
+  <div class="stack-s"><span class="eyebrow">The real barrier</span><h2>The part code can't solve</h2></div>
+  <p>This is the constraint most people underestimate.</p>
+  <p><strong>For a single business</strong> using WhatsApp Business API, onboarding is fast: 3–10 business days end to end — 2–4 days for Business Verification, hours for WABA and number setup, 24–48 hours for the first template approval.</p>
+  <p><strong>For a platform serving other businesses' accounts — which is exactly what we'd be — it's a different process:</strong></p>
+  <ul class="clean">
+    <li>Instagram messaging needs <strong>Advanced Access</strong> to <code>instagram_manage_messages</code>, plus <code>instagram_basic</code>, <code>pages_manage_metadata</code> and <code>pages_show_list</code> — granted only through <strong>App Review on a verified Meta Business portfolio</strong>.</li>
+    <li>Meta's team <strong>actively tests the app's functionality</strong> and audits policy compliance. A missing or non-working webhook callback URL is a standard rejection.</li>
+    <li>Rejections are common and each round trip costs weeks.</li>
+    <li>Ongoing compliance risk is permanent — using the <code>human_agent</code> tag for automated bot replies is explicitly prohibited and is cited as <strong>one of the fastest ways to lose API access entirely</strong>.</li>
+  </ul>
+  <p>DM Champ has already been through it and carries that risk on their account, not ours. That is a substantial, unpriced part of what the subscription buys.</p>
+  <p>Note this cuts both ways: reviewers report DM Champ's own Instagram connection flow is fragile — one user spent three days failing to connect. <strong>Meta integration is painful even when someone else has done the approval work.</strong> And per part 4, we haven't tested it at all yet.</p>
+</section>
+
+<section>
+  <div class="stack-s"><span class="eyebrow">The money</span><h2>Buy versus build</h2></div>
+  <div class="table-scroll full">
+    <table>
+      <thead><tr><th>Path</th><th class="num">Year one</th><th>Ongoing</th></tr></thead>
+      <tbody>
+        <tr class="highlight"><td><strong>Buy</strong> — Agency Unlimited plus credits at 100 clients</td><td class="num">~$6,000–$36,000</td><td>Flat platform cost. Credit spend scales with usage; see the note below.</td></tr>
+        <tr><td><strong>Build</strong> — two developers, twelve months</td><td class="num">$30,000–$150,000+</td><td>30–50% of build cost every year, forever, plus Meta API churn and on-call.</td></tr>
+      </tbody>
+      <caption>Build cost varies hugely by region and seniority. Neither figure includes the opportunity cost of those developers not building anything else.</caption>
+    </table>
+  </div>
+  <p>The range on "buy" is the honest one, and it depends entirely on the BYOK question in part 4:</p>
+  <ul class="clean">
+    <li><strong>With bring-your-own-key on the Pro tier:</strong> ~$2,982 platform + ~$3,000 direct to the model provider = <strong>~$6,000/year for unlimited clients.</strong></li>
+    <li><strong>Without it, on the Max tier we're running today:</strong> ~$2,982 + ~$30,000 in credits at 100 clients = <strong>~$33,000/year.</strong></li>
+  </ul>
+  <p><strong>Even the worse case beats building.</strong> At $33,000/year we'd still need four-plus years to equal a single year of building — and that ignores maintenance, which never stops.</p>
+  <div class="callout note">
+    <span class="tag">The detail that settles it</span>
+    <p>The usual case for building is that per-message platform fees explode at volume. <strong>Bring-your-own-key is the escape hatch DM Champ built to prevent exactly that.</strong> Plug in our own key on the Pro tier and AI replies cost zero credits; we pay the model provider directly at cost, and marginal cost per client collapses.</p>
+    <p>Getting access to that setting is worth more than any plan negotiation — and it's currently the single highest-value open question.</p>
+  </div>
+</section>
+
+<section>
+  <div class="stack-s"><span class="eyebrow">If we do build</span><h2>Don't start from zero</h2></div>
+  <p><strong>Chatwoot</strong> is a mature open-source omnichannel inbox — live chat, email, WhatsApp, Facebook, Instagram, Telegram — free to self-host, with automations, contact profiles and a built-in AI agent. It would eliminate most of system 2 and much of system 4 above, plausibly halving the timeline.</p>
+  <p>What it does <em>not</em> give us: the multi-tenant white-label billing layer, the Meta App Review approval, or the URL-to-agent onboarding. Those are precisely the expensive, risky parts. <strong>It changes the estimate; it doesn't change the recommendation.</strong></p>
+</section>
+
+<section>
+  <div class="stack-s"><span class="eyebrow">The risk of buying</span><h2>Platform dependency</h2></div>
+  <div class="callout risk">
+    <span class="tag">Name it before committing</span>
+    <p>DM Champ is <strong>3 people, ~$330K ARR, bootstrapped, founded 2023</strong>. We'd be putting our client-facing brand and our clients' live sales conversations on it. If they're acquired, pivot or fold, <strong>every white-labeled client breaks simultaneously</strong> — and those clients think the product is ours.</p>
+  </div>
+  <p>Mitigations, all cheap:</p>
+  <ul class="clean">
+    <li>Hold our own client contracts; never let DM Champ be the contracting party</li>
+    <li>Export contacts and conversation data on a schedule — Data Export exists and they have a documented DPA</li>
+    <li>Keep the AI playbooks in our own repo as the source of truth, not only in their UI</li>
+    <li>Prefer <strong>Managed billing mode</strong> so client payment relationships stay ours</li>
+    <li>Use our own model API key where possible</li>
+    <li>Stay on monthly billing until the offer is validated</li>
+  </ul>
+  <p>On the other side of the ledger: bootstrapped and profitable at three people is a <em>stable</em> shape. They're not burning VC money chasing a pivot, and reviewers consistently praise the team shipping fixes within days.</p>
+</section>
+
+<section>
+  <div class="stack-s"><span class="eyebrow">The exception</span><h2>When building would make sense</h2></div>
+  <p>The financial case is weak. These are the non-financial cases, and they're legitimate:</p>
+  <ol class="checks">
+    <li><strong>We want a product to sell, not a service to deliver.</strong> A SaaS we own is an asset with enterprise value; a reseller arrangement is not. If the boss's real ambition is to build DM Champ's <em>business</em>, not use their software, everything above is beside the point — but it should be an explicit, funded product bet with a 12–24 month horizon, not a cost-saving exercise.</li>
+    <li><strong>A vertical they'll never serve.</strong> A safari/tourism agent wired into our own Nuxt API — live availability, real itineraries, real pricing — could be genuinely differentiated. <em>But</em> their Custom Functions already let their bot call our API mid-conversation, so we can likely get 80% of that without building anything.</li>
+    <li><strong>Platform risk becomes unacceptable.</strong></li>
+    <li><strong>Data or regulatory requirements</strong> we can't meet on their infrastructure.</li>
+  </ol>
+</section>
+
+</div>
+</div>

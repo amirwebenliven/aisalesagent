@@ -1,0 +1,907 @@
+<title>Buy DM Champ or Build It</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,600;0,700;1,400&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+  :root {
+    --bg:        #F2F5F4;
+    --surface:   #FFFFFF;
+    --surface-2: #E9EEEC;
+    --line:      #D2DCD9;
+    --line-soft: #E2E9E7;
+    --ink:       #16211F;
+    --ink-2:     #3D4F4C;
+    --muted:     #647774;
+    --accent:    #0E6E63;
+    --accent-2:  #0A544B;
+    --accent-wash: #E2F0ED;
+    --brass:     #A2691C;
+    --brass-wash:#F7EDDF;
+    --danger:    #A03A31;
+    --danger-wash:#F8E7E4;
+    --good:      #2C7355;
+    --good-wash: #E4F0EA;
+
+    --measure: 68ch;
+    --radius: 3px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:        #0D1413;
+      --surface:   #141F1D;
+      --surface-2: #1B2725;
+      --line:      #2C3B38;
+      --line-soft: #223230;
+      --ink:       #E6EDEB;
+      --ink-2:     #B7C6C3;
+      --muted:     #8B9D9A;
+      --accent:    #4FB5A6;
+      --accent-2:  #7FCFC2;
+      --accent-wash:#122E2A;
+      --brass:     #D4A45E;
+      --brass-wash:#2B2214;
+      --danger:    #E08A80;
+      --danger-wash:#2E1A17;
+      --good:      #6BBF95;
+      --good-wash: #14291F;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg:        #0D1413;
+    --surface:   #141F1D;
+    --surface-2: #1B2725;
+    --line:      #2C3B38;
+    --line-soft: #223230;
+    --ink:       #E6EDEB;
+    --ink-2:     #B7C6C3;
+    --muted:     #8B9D9A;
+    --accent:    #4FB5A6;
+    --accent-2:  #7FCFC2;
+    --accent-wash:#122E2A;
+    --brass:     #D4A45E;
+    --brass-wash:#2B2214;
+    --danger:    #E08A80;
+    --danger-wash:#2E1A17;
+    --good:      #6BBF95;
+    --good-wash: #14291F;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Public Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 17px;
+    line-height: 1.65;
+    margin: 0;
+    padding: 0 20px 96px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 940px;
+    margin: 0 auto;
+  }
+
+  /* ---------- typography ---------- */
+
+  h1, h2, h3 {
+    font-family: Spectral, ui-serif, Georgia, serif;
+    text-wrap: balance;
+    color: var(--ink);
+    margin: 0;
+  }
+
+  h1 {
+    font-size: clamp(2.1rem, 5.2vw, 3.15rem);
+    font-weight: 700;
+    line-height: 1.08;
+    letter-spacing: -0.015em;
+  }
+
+  h2 {
+    font-size: clamp(1.5rem, 3vw, 1.9rem);
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+  }
+
+  h3 {
+    font-size: 1.16rem;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+  p { margin: 0; max-width: var(--measure); }
+  .full p { max-width: none; }
+
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  strong { font-weight: 600; color: var(--ink); }
+
+  code {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.88em;
+    background: var(--surface-2);
+    border: 1px solid var(--line-soft);
+    border-radius: 2px;
+    padding: 0.5px 5px;
+    color: var(--ink-2);
+  }
+
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .lede {
+    font-family: Spectral, ui-serif, Georgia, serif;
+    font-size: clamp(1.12rem, 2.1vw, 1.32rem);
+    line-height: 1.55;
+    color: var(--ink-2);
+    max-width: 60ch;
+  }
+
+  /* ---------- layout primitives ---------- */
+
+  .stack   { display: flex; flex-direction: column; gap: 18px; }
+  .stack-s { display: flex; flex-direction: column; gap: 10px; }
+  .stack-l { display: flex; flex-direction: column; gap: 30px; }
+
+  section { display: flex; flex-direction: column; gap: 20px; }
+
+  .sections { display: flex; flex-direction: column; gap: 62px; }
+
+  /* ---------- masthead ---------- */
+
+  header.masthead {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    padding: 64px 0 34px;
+    border-bottom: 2px solid var(--ink);
+    margin-bottom: 44px;
+  }
+
+  .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 26px;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.74rem;
+    color: var(--muted);
+    letter-spacing: 0.03em;
+  }
+
+  /* ---------- verdict panel ---------- */
+
+  .verdict {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 30px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .verdict h2 {
+    font-size: clamp(1.6rem, 3.4vw, 2.1rem);
+    color: var(--accent-2);
+  }
+
+  /* ---------- cards ---------- */
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 22px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 265px), 1fr));
+    gap: 16px;
+  }
+
+  .grid-3 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 195px), 1fr));
+    gap: 16px;
+  }
+
+  .stat {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .stat .num {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 1.72rem;
+    font-weight: 600;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+  }
+
+  .stat .cap {
+    font-size: 0.87rem;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+
+  /* ---------- callouts ---------- */
+
+  .callout {
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    border: 1px solid;
+  }
+  .callout p { max-width: 62ch; }
+  .callout.warn   { background: var(--brass-wash);  border-color: var(--brass);  }
+  .callout.risk   { background: var(--danger-wash); border-color: var(--danger); }
+  .callout.note   { background: var(--accent-wash); border-color: var(--accent); }
+
+  .callout .tag {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .callout.warn .tag { color: var(--brass); }
+  .callout.risk .tag { color: var(--danger); }
+  .callout.note .tag { color: var(--accent-2); }
+
+  /* ---------- tables ---------- */
+
+  .table-scroll {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 460px;
+    font-size: 0.93rem;
+  }
+
+  th, td {
+    text-align: left;
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--line-soft);
+    vertical-align: top;
+  }
+
+  thead th {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+
+  tbody tr:last-child td { border-bottom: none; }
+
+  td.num, th.num {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  tr.highlight td { background: var(--accent-wash); font-weight: 500; }
+
+  caption {
+    caption-side: bottom;
+    text-align: left;
+    padding: 10px 16px;
+    font-size: 0.82rem;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* ---------- phases (a real sequence — numbering earns its place here) ---------- */
+
+  .phases { display: flex; flex-direction: column; gap: 2px; }
+
+  .phase {
+    display: grid;
+    grid-template-columns: 62px minmax(0, 1fr);
+    gap: 0 22px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    padding: 22px 24px;
+    align-items: start;
+  }
+  .phase:first-child { border-radius: var(--radius) var(--radius) 0 0; }
+  .phase:last-child  { border-radius: 0 0 var(--radius) var(--radius); }
+  .phase + .phase { border-top: none; }
+
+  .phase .n {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 1.55rem;
+    font-weight: 600;
+    color: var(--accent);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    padding-top: 2px;
+  }
+
+  .phase .body { display: flex; flex-direction: column; gap: 8px; }
+
+  .phase .when {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* ---------- lists ---------- */
+
+  ul.clean {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    max-width: var(--measure);
+  }
+
+  ul.clean > li {
+    position: relative;
+    padding-left: 20px;
+  }
+
+  ul.clean > li::before {
+    content: "";
+    position: absolute;
+    left: 3px;
+    top: 0.66em;
+    width: 6px;
+    height: 1px;
+    background: var(--accent);
+  }
+
+  ol.checks {
+    margin: 0;
+    padding-left: 1.25em;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    max-width: var(--measure);
+  }
+  ol.checks::marker, ol.checks li::marker {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    color: var(--accent);
+    font-size: 0.85em;
+  }
+
+  /* ---------- misc ---------- */
+
+  .divider { height: 1px; background: var(--line); border: none; margin: 0; }
+
+  .kicker {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.73rem;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    background: var(--surface-2);
+    border: 1px solid var(--line-soft);
+    border-radius: 2px;
+    padding: 1px 7px;
+    white-space: nowrap;
+  }
+
+  footer.colophon {
+    margin-top: 76px;
+    padding-top: 28px;
+    border-top: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    font-size: 0.88rem;
+    color: var(--muted);
+  }
+  footer.colophon a { color: var(--muted); }
+  footer.colophon .srcs { max-width: none; line-height: 1.9; }
+
+  @media (max-width: 560px) {
+    body { font-size: 16px; padding: 0 16px 72px; }
+    .verdict { padding: 24px 20px; }
+    .phase { grid-template-columns: 40px minmax(0, 1fr); gap: 0 14px; padding: 20px 18px; }
+    .phase .n { font-size: 1.25rem; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="stack-s">
+      <span class="eyebrow">Vendor assessment · Internal</span>
+      <h1>Buy DM Champ or build it</h1>
+    </div>
+    <p class="lede">Our boss asked whether we should create a product like DM Champ, or whether theirs is cheap enough to just use. Theirs is cheaper — by roughly an order of magnitude — and the reasons why are worth understanding before we commit either way.</p>
+    <div class="meta-row">
+      <span>24 August 2026</span>
+      <span>Subject: dmchamp.com</span>
+      <span>Our instance: foundergrowth.ai</span>
+      <span>Status: verified inside the live account</span>
+    </div>
+  </header>
+
+  <div class="sections">
+
+    <!-- ============ VERDICT ============ -->
+    <section>
+      <div class="verdict">
+        <span class="eyebrow">Recommendation</span>
+        <h2>Resell theirs. Don't build — yet.</h2>
+        <p>Unlimited white-label reselling costs <strong>$2,982 a year</strong>. Building a genuine equivalent is a <strong>12–24 month project for two or more developers</strong>. Even at the most optimistic build cost, we'd need five-plus years of subscription to break even — before counting maintenance, which never stops.</p>
+        <p>Building becomes the right call only if the goal changes: if we want to own <em>a product to sell</em> rather than <em>a service to deliver</em>. That's a strategy decision with a two-year horizon, not a way to save money.</p>
+      </div>
+
+      <div class="callout risk">
+        <span class="tag">Settle this before anything else</span>
+        <p>Inside the live account there is <strong>no agency section, no sub-account tools, and no white-label controls</strong> — yet the site is fully branded as FounderGrowth.AI. There's also no monthly credit grant and no card on file.</p>
+        <p>That points at one of two very different situations: either <strong>this workspace is a sub-account inside someone else's agency</strong> — in which case we are the client, not the reseller, and none of the reselling economics below are available to us yet — or the boss holds a lifetime deal and configured white-label from a separate agency-level login. <strong>Everything downstream depends on which it is.</strong></p>
+      </div>
+    </section>
+
+    <!-- ============ WHAT IT IS ============ -->
+    <section>
+      <div class="stack-s">
+        <span class="eyebrow">01 · What we're actually looking at</span>
+        <h2>It's not a website builder</h2>
+      </div>
+      <p>DM Champ is a <strong>white-label AI sales agent</strong>. An AI reads and replies to customer messages on WhatsApp, Instagram DMs, Messenger, Telegram, SMS, email and web chat — qualifying the lead, handling objections, and booking the call with no human involved. Agencies rebrand the entire platform under their own domain and resell it to their clients at any price they like.</p>
+
+      <div class="callout note">
+        <span class="tag">Clearing this up first</span>
+        <p><strong>foundergrowth.ai is our boss's white-labeled DM Champ instance.</strong> There is no DM Champ branding on it anywhere — that's the product working exactly as designed, not a separate thing he built. Every agency customer gets their own version of that.</p>
+      </div>
+
+      <p>Setup is the standout: you paste a client's <strong>website URL</strong>, their AI crawls it, and generates the whole agent — tone, goals, conversation flow, and an FAQ knowledge base built from the site. Reviewers consistently report a new client live in about <strong>15 minutes</strong>.</p>
+
+      <p>The reason conversations feel human isn't a better model — it's <strong>pacing</strong>. A 15–30 second delay before typing starts, replies split into several short bubbles, and character-by-character typing simulation. Verified reviewers repeatedly report leads not realising they're talking to a bot.</p>
+    </section>
+
+    <!-- ============ COMPANY ============ -->
+    <section>
+      <div class="stack-s">
+        <span class="eyebrow">02 · Who we'd be depending on</span>
+        <h2>A three-person company</h2>
+      </div>
+
+      <div class="grid-3">
+        <div class="stat">
+          <span class="num">$330K</span>
+          <span class="cap">Annual recurring revenue, mid-2025</span>
+        </div>
+        <div class="stat">
+          <span class="num">3</span>
+          <span class="cap">Employees</span>
+        </div>
+        <div class="stat">
+          <span class="num">$0</span>
+          <span class="cap">Outside funding — fully bootstrapped</span>
+        </div>
+      </div>
+
+      <p>Founded in 2023 by <strong>Sohaib Ahmad</strong>, based in the Netherlands. They sell direct at $97–$497/month and have run an AppSumo lifetime deal ($59–$999 one-time, currently sold out).</p>
+      <p>Bootstrapped and profitable at three people is a <em>stable</em> shape — they aren't burning investor money chasing a pivot, and reviewers praise the team shipping bug fixes within days. But the concentration risk is real, and section 06 deals with it directly.</p>
+    </section>
+
+    <!-- ============ REVENUE MODEL ============ -->
+    <section>
+      <div class="stack-s">
+        <span class="eyebrow">03 · How they make money</span>
+        <h2>The subscription is the small half</h2>
+      </div>
+
+      <p>The model is <strong>subscription for access, plus marked-up credits for usage</strong>. Credits are where the margin lives. They sell a credit at <strong>$0.10</strong>, and one AI reply burns one credit on their top tier.</p>
+
+      <div class="table-scroll full">
+        <table>
+          <caption>Per-reply cost to them vs. what they charge. Model costs assume ~8,000 input tokens and ~150 output tokens with a cached prompt prefix — the ideal case for a DM bot, since the playbook and FAQ are identical on every reply.</caption>
+          <thead>
+            <tr>
+              <th>Tier</th>
+              <th class="num">They charge</th>
+              <th class="num">Underlying model cost</th>
+              <th class="num">Multiple</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="highlight">
+              <td><strong>Pro</strong> — Claude Sonnet</td>
+              <td class="num">$0.100</td>
+              <td class="num">~$0.005</td>
+              <td class="num">~20×</td>
+            </tr>
+            <tr>
+              <td><strong>Max</strong> — their own model</td>
+              <td class="num">$0.025</td>
+              <td class="num">—</td>
+              <td class="num">~5×</td>
+            </tr>
+            <tr>
+              <td><strong>Mini</strong> — lighter model</td>
+              <td class="num">$0.015</td>
+              <td class="num">—</td>
+              <td class="num">~3×</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>Look at their top plan: <strong>Agency Unlimited is $248.50/month billed yearly, and includes 2,500 credits — a face value of $250.</strong> On paper the plan is free if you value credits at list price. That tells you plainly how far above cost the credit price sits.</p>
+
+      <p>They then let agencies do the same thing one level down. We buy credits at $0.10 and set a <strong>per-client markup rate</strong> on each sub-account — their own example has a client burning 0.5 credits per action while our pool pays 0.2. The spread is applied automatically, with no reconciliation on our side.</p>
+    </section>
+
+    <!-- ============ VERIFIED CONSUMPTION ============ -->
+    <section>
+      <div class="stack-s">
+        <span class="eyebrow">03b · Checked against the live billing ledger</span>
+        <h2>It costs about twice the advertised rate</h2>
+      </div>
+
+      <p>The headline is "one AI response, one credit charge." The actual ledger tells a different story: <strong>every AI action is billed separately</strong> — not just the reply the customer sees. One real conversation on 15 August produced <strong>eight charges for four visible replies</strong>.</p>
+
+      <div class="table-scroll full">
+        <table>
+          <thead>
+            <tr><th>Time</th><th>What was charged</th><th class="num">Credits</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="num">2:48:06 PM</td><td>AI Message</td><td class="num">0.25</td></tr>
+            <tr><td class="num">2:48:20 PM</td><td>AI First Name Extraction</td><td class="num">0.25</td></tr>
+            <tr><td class="num">2:48:37 PM</td><td>AI Message</td><td class="num">0.25</td></tr>
+            <tr><td class="num">2:49:17 PM</td><td>AI Message</td><td class="num">0.25</td></tr>
+            <tr><td class="num">2:51:08 PM</td><td>AI Tool Use: alertHuman</td><td class="num">0.25</td></tr>
+            <tr><td class="num">2:53:14 PM</td><td>AI Email Extraction</td><td class="num">0.25</td></tr>
+            <tr><td class="num">2:53:21 PM</td><td>AI Tool Use: setContactEmail</td><td class="num">0.25</td></tr>
+            <tr><td class="num">2:53:34 PM</td><td>AI Message</td><td class="num">0.25</td></tr>
+            <tr class="highlight"><td class="num">—</td><td><strong>Four replies the customer saw</strong></td><td class="num"><strong>2.00</strong></td></tr>
+          </tbody>
+          <caption>Extractions and tool calls are billed at the same rate as replies. Effective cost: ~0.5 credits per visible reply against an advertised 0.25.</caption>
+        </table>
+      </div>
+
+      <h3>And three costs the marketing never mentions</h3>
+      <ul class="clean">
+        <li><strong>Knowledge-base ingestion: 1 credit per page.</strong> Training the bot on 15 pages of the test client's site cost 15 credits before a single conversation happened. A 200-page client site would cost $20 to onboard.</li>
+        <li><strong>Daily summaries: 0.25/day, fired whether or not anything happened</strong> — about 7.5 credits a month of passive burn per workspace.</li>
+        <li><strong>Automated follow-ups are billed like replies</strong>, at 0.25 each.</li>
+      </ul>
+
+      <p>Over 30 days this account burned <strong>71.75 credits across 95 billed records</strong>, on three or four real conversations. The dashboard's own figure is <strong>18.06 credits per chat — about $1.81 a conversation</strong> — though that's inflated by fixed overhead spread over a tiny sample. The defensible planning number is <strong>roughly double the headline rate</strong>, plus per-client setup and a monthly passive floor.</p>
+
+      <p>Practically: budget about <strong>$27.50 per client per month</strong> at 500 replies, not the ~$12.50 the advertised rate implies.</p>
+
+      <div class="callout note">
+        <span class="tag">The setting that actually saves money</span>
+        <p>Bring-your-own-key only zeroes credits on the <strong>Pro</strong> tier. On <strong>Max</strong> and <strong>Mini</strong> — which run on their own infrastructure — your key changes nothing. This account is running Max, where BYOK would do <em>nothing at all</em>.</p>
+        <p>So the counter-intuitive right answer is to run the <em>most expensive-looking</em> tier: <strong>Pro at 1 credit becomes 0 credits with our own Anthropic key</strong>, costing about $0.005 a call directly — roughly <strong>five times cheaper than Max</strong>. That single setting is worth more than any plan negotiation.</p>
+        <p><strong>Except it isn't available to us today.</strong> The agent editor offers exactly three tiers — Pro, Max, Mini — with no API-key field anywhere, and Settings has no BYOK section either. That option needs an Agency-tier plan. Until the account question is settled, our real cost floor is Max at 0.25 credits per billed action.</p>
+      </div>
+    </section>
+
+    <!-- ============ WHAT'S RUNNING ============ -->
+    <section>
+      <div class="stack-s">
+        <span class="eyebrow">03c · What's actually running today</span>
+        <h2>One real client, one easy channel</h2>
+      </div>
+
+      <p>The account isn't a demo. It's running <strong>Al Taher Chemicals</strong> — an electroplating and metal-finishing business — through an agent named "Tia | ATC", with 15 pages of their site in the knowledge base.</p>
+
+      <div class="grid-3">
+        <div class="stat">
+          <span class="num">73%</span>
+          <span class="cap">Of outgoing messages handled by AI</span>
+        </div>
+        <div class="stat">
+          <span class="num">0</span>
+          <span class="cap">Conversations completed without a human stepping in</span>
+        </div>
+        <div class="stat">
+          <span class="num">1 of 6</span>
+          <span class="cap">Channels connected — the chat widget</span>
+        </div>
+      </div>
+
+      <p>Three conversations involved both AI and a human; <strong>none were AI-only</strong>. On a sample that small it isn't damning, but it doesn't yet demonstrate the autonomous close the marketing sells either.</p>
+
+      <p>More significant: <strong>WhatsApp, Instagram, Messenger and SMS are all disconnected.</strong> Everything working today runs through a website chat widget — the easiest channel there is, and the only one that needs no Meta approval. <strong>The hard part, and the part reviewers complain about most, is completely untested on our side.</strong></p>
+
+      <p>One review complaint reproduced immediately: several contacts and an entire conversation show up as <em>"Unknown Unknown"</em> in the inbox.</p>
+    </section>
+
+    <!-- ============ PLANS ============ -->
+    <section>
+      <div class="stack-s">
+        <span class="eyebrow">04 · What it costs us</span>
+        <h2>Plans</h2>
+      </div>
+
+      <div class="table-scroll full">
+        <table>
+          <thead>
+            <tr>
+              <th>Plan</th>
+              <th class="num">Monthly</th>
+              <th class="num">Yearly (50% off)</th>
+              <th class="num">Credits/mo</th>
+              <th>Client accounts</th>
+              <th>White-label</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Business</td>
+              <td class="num">$97</td>
+              <td class="num">$582</td>
+              <td class="num">250</td>
+              <td>—</td>
+              <td>No</td>
+            </tr>
+            <tr>
+              <td>Agency</td>
+              <td class="num">$297</td>
+              <td class="num">$1,782</td>
+              <td class="num">1,000</td>
+              <td>10, then $29/mo each</td>
+              <td>Yes</td>
+            </tr>
+            <tr class="highlight">
+              <td><strong>Agency Unlimited</strong></td>
+              <td class="num">$497</td>
+              <td class="num">$2,982</td>
+              <td class="num">2,500</td>
+              <td>Unlimited, no per-account fee</td>
+              <td>Yes</td>
+            </tr>
+          </tbody>
+          <caption>All channels are included on every plan — channel access isn't the upsell. The 90-day money-back guarantee applies to yearly billing only.</caption>
+        </table>
+      </div>
+
+      <p>White-label is genuinely complete: our domain with auto-provisioned SSL, our logo, colours, fonts, app name, login page, email sender identity and SEO metadata. Their own documentation puts it as clients having "no idea they are using the platform under the hood." It requires the Agency tier or above — the Business plan doesn't include it.</p>
+
+      <div class="callout note">
+        <span class="tag">Worth watching</span>
+        <p>The AppSumo <strong>lifetime deal</strong> is currently sold out, but Tier 6 was <strong>$999 one-time for unlimited white-label sub-accounts, forever</strong>. If it returns, that removes the platform subscription from the equation entirely. Set a notification.</p>
+      </div>
+    </section>
+
+    <!-- ============ BUILD VS BUY ============ -->
+    <section>
+      <div class="stack-s">
+        <span class="eyebrow">05 · The actual decision</span>
+        <h2>What building would take</h2>
+      </div>
+
+      <p>It's four independent systems, not one — and the part that <em>feels</em> like the product is the smallest slice of the work. That asymmetry is the trap.</p>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>The AI agent layer</h3>
+          <p><span class="kicker">4–8 weeks</span></p>
+          <p>Prompt orchestration, knowledge retrieval, memory, tool calling, human handoff, the URL-to-playbook crawler. Genuinely tractable with the Claude API. <strong>This is the easy part.</strong></p>
+        </div>
+        <div class="card">
+          <h3>Omnichannel messaging</h3>
+          <p><span class="kicker">3–6 months</span></p>
+          <p>WhatsApp, Instagram, Messenger, Telegram, Twilio, email, web widget. Each has its own webhooks, media handling, rate limits and 24-hour-window rules — and Meta changes them constantly.</p>
+        </div>
+        <div class="card">
+          <h3>Multi-tenant white-label</h3>
+          <p><span class="kicker">3–5 months</span></p>
+          <p>Tenant isolation, per-tenant theming, custom domains with automated certificate renewal, impersonation with audit trails, a credit ledger with per-client markup, Stripe billing. Unglamorous, security-sensitive, invisible until it breaks.</p>
+        </div>
+        <div class="card">
+          <h3>The application itself</h3>
+          <p><span class="kicker">3–6 months</span></p>
+          <p>Unified inbox, contact CRM, campaign builder, calendar-synced booking, pipeline, analytics, REST API, webhooks, admin tooling.</p>
+        </div>
+      </div>
+
+      <div class="table-scroll full">
+        <table>
+          <thead>
+            <tr><th>Path</th><th class="num">Year one</th><th>Ongoing</th></tr>
+          </thead>
+          <tbody>
+            <tr class="highlight">
+              <td><strong>Buy</strong> — Agency Unlimited + credits at 100 clients on our own API key</td>
+              <td class="num">~$6,000</td>
+              <td>Flat. Marginal cost per new client is near zero.</td>
+            </tr>
+            <tr>
+              <td><strong>Build</strong> — two developers, twelve months</td>
+              <td class="num">$30,000–$150,000+</td>
+              <td>30–50% of build cost every year, forever, plus Meta API churn and on-call.</td>
+            </tr>
+          </tbody>
+          <caption>Build cost varies hugely by region and seniority. Neither figure includes the opportunity cost of those developers not building anything else.</caption>
+        </table>
+      </div>
+
+      <h3>The barrier that code can't solve</h3>
+      <p>Serving <em>other businesses'</em> Instagram and WhatsApp accounts — which is exactly what a reseller platform does — requires <strong>Advanced Access through Meta App Review</strong> on a verified Business portfolio. Meta actively tests the app's functionality, rejections are common, and each round trip costs weeks. The compliance exposure is permanent: misusing the <code>human_agent</code> tag for bot replies, for instance, is cited as one of the fastest ways to lose API access outright.</p>
+      <p>DM Champ already holds that approval and carries that risk on their account rather than ours. It's a substantial, unpriced part of what the subscription buys.</p>
+
+      <div class="callout note">
+        <span class="tag">The detail that settles it</span>
+        <p>The usual case for building is that per-message platform fees explode at volume — and they would here, at roughly $15,000/year in credits at 100 clients. <strong>But DM Champ supports bring-your-own-key.</strong> Plug in our own Anthropic key and AI replies cost <strong>zero credits</strong>; we pay Anthropic directly at cost. Our marginal cost per client collapses, and the volume argument for building evaporates. They built the escape hatch that removes the main reason to leave them.</p>
+      </div>
+
+      <h3>Would ChatGPT or Gemini make building cheaper?</h3>
+      <p>Cheaper on the model bill, yes — decisive, no. First, a practical point: <strong>ChatGPT can't be used inside DM Champ at all</strong>; their bring-your-own-key is Anthropic-only. So this only applies if we build.</p>
+
+      <div class="table-scroll full">
+        <table>
+          <thead>
+            <tr><th>Option</th><th class="num">Per reply</th><th class="num">Per year at 100 clients</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Gemini 2.5 Flash-Lite</td><td class="num">$0.00023</td><td class="num">$140</td></tr>
+            <tr><td>GPT-5.6-luna</td><td class="num">$0.00052</td><td class="num">$310</td></tr>
+            <tr><td>Claude Haiku 4.5</td><td class="num">$0.00245</td><td class="num">$1,470</td></tr>
+            <tr><td>Claude Sonnet 5</td><td class="num">$0.0074</td><td class="num">$4,440</td></tr>
+            <tr><td>GPT-5.6-sol</td><td class="num">$0.013</td><td class="num">$7,800</td></tr>
+            <tr class="highlight"><td><strong>DM Champ, Max tier</strong></td><td class="num">~$0.050</td><td class="num">$30,000</td></tr>
+          </tbody>
+          <caption>Assumes ~7,000 cached input tokens, ~1,000 fresh, ~150 output per reply, at 500 replies per client per month. All three providers price cache reads at ~10% of the input rate.</caption>
+        </table>
+      </div>
+
+      <p><strong>The entire spread between the cheapest and most expensive AI API is about $7,700 a year. The build is $30,000–$150,000 plus two years.</strong> Switching provider optimises the one line item that was already cheap — the messaging infrastructure, the white-label platform, the app, and the Meta approval are unchanged by it.</p>
+
+      <p>And picking the cheapest model is its own trap. This product's value is the AI <em>not embarrassing us in front of a client's prospects</em>. The live ledger shows the bot firing tool calls — <code>setContactEmail</code>, <code>alertHuman</code>, <code>createTask</code> — which is the actual mechanism; weak models are unreliable at exactly that, and a missed <code>alertHuman</code> means a hot lead goes unanswered. DM Champ's own UI warns that its budget tier has "a higher chance of small mistakes or hallucinations." Note what they chose for their top tier: Claude Sonnet, not the cheapest API on the market — and they're the ones under margin pressure.</p>
+
+      <h3>If we ever do build, don't start from zero</h3>
+      <p><strong>Chatwoot</strong> is a mature open-source omnichannel inbox — live chat, email, WhatsApp, Instagram, Telegram — free to self-host. It would eliminate most of the messaging plumbing and the inbox UI, plausibly halving the timeline. What it doesn't give us is the multi-tenant white-label billing layer or the Meta approval, which are precisely the expensive, risky parts. It changes the estimate; it doesn't change the recommendation.</p>
+    </section>
+
+    <!-- ============ RISKS ============ -->
+    <section>
+      <div class="stack-s">
+        <span class="eyebrow">06 · What could go wrong</span>
+        <h2>Two risks worth planning for</h2>
+      </div>
+
+      <div class="callout risk">
+        <span class="tag">Platform dependency</span>
+        <p>We would put our client-facing brand and our clients' live sales conversations on a three-person bootstrapped company. If they're acquired, pivot or fold, <strong>every white-labeled client breaks at once</strong> — and those clients think the product is ours.</p>
+        <p>Mitigations are all cheap: hold our own client contracts, export contacts and conversations on a schedule, keep AI playbooks in our repo as the source of truth, use managed billing so payment relationships stay ours, use our own Anthropic key, and stay on monthly billing until the offer is validated.</p>
+      </div>
+
+      <div class="callout warn">
+        <span class="tag">Time-sensitive · 1 October 2026</span>
+        <p>Meta is changing WhatsApp pricing. Service messages — the AI's replies inside the 24-hour customer window — are <strong>free today</strong> and become <strong>charged per message</strong> on 1 October. Rates publish <strong>1 September</strong>, about a week from now.</p>
+        <p>This hits every platform equally, including one we build ourselves, so it doesn't favour either side of the decision — but it changes what we must charge clients. UAE rates are steep (~$0.03–$0.08/message versus India's ~$0.001–$0.009); for UAE clients, WhatsApp delivery could become a bigger line item than the AI itself. Any quote issued before the rates land needs a pass-through clause.</p>
+      </div>
+
+      <p>Separately, from verified reviews: Instagram contacts display as "Unknown Unknown" (a Meta limitation, but it looks unprofessional), the Instagram connection flow is fragile, parts of the documentation are outdated, and there's no TikTok support. Ratings are strong overall — 4.8 stars across 142 reviews, 133 of them five-star — and the complaints cluster around onboarding friction and Meta integration rather than AI quality.</p>
+    </section>
+
+    <!-- ============ PLAN ============ -->
+    <section>
+      <div class="stack-s">
+        <span class="eyebrow">07 · What to do</span>
+        <h2>A staged plan</h2>
+      </div>
+
+      <div class="phases">
+        <div class="phase">
+          <span class="n">01</span>
+          <div class="body">
+            <span class="when">Now — next 3 to 6 months</span>
+            <h3>Resell on the account we already have</h3>
+            <p>Onboard three to five real clients under foundergrowth.ai. Learn the operational reality: how long setup truly takes, how good the AI is on our clients' actual conversations, and where it embarrasses us. Cost is essentially the subscription already paid.</p>
+          </div>
+        </div>
+        <div class="phase">
+          <span class="n">02</span>
+          <div class="body">
+            <span class="when">Month six — decide with evidence</span>
+            <h3>Revisit only on a specific trigger</h3>
+            <p>We pass roughly 30 paying clients with a proven model; or we hit a hard product limit they refuse to fix; or the boss commits to a product bet rather than a service business. Absent one of those, keep reselling.</p>
+          </div>
+        </div>
+        <div class="phase">
+          <span class="n">03</span>
+          <div class="body">
+            <span class="when">If at all</span>
+            <h3>Build the thin layer, not the platform</h3>
+            <p>Even then, don't rebuild the infrastructure. Build what differentiates us — our own vertical playbooks, our own API integrations, our own onboarding and reporting — on top of theirs. Their <strong>Custom Functions</strong> already let their bot call our APIs mid-conversation, so a safari agent could quote live availability and real pricing from our Nuxt backend without us building anything. That's weeks of work, not years.</p>
+          </div>
+        </div>
+      </div>
+
+      <h3>This week, regardless of the decision</h3>
+      <ol class="checks">
+        <li><strong>Establish whether we're the agency or somebody else's client.</strong> If this workspace is a sub-account, we can't resell from it and the plan needs rewriting. Nothing else matters until this is answered.</li>
+        <li><strong>Ask what it takes to get bring-your-own-key.</strong> It's absent on this account and needs an Agency tier — on Pro it makes replies roughly five times cheaper than the Max tier we're running now.</li>
+        <li><strong>Look at why 14 replies produced a 0% rate</strong>, and consider moving the agent off "Fast" response speed — the UI itself warns that setting lowers reply quality.</li>
+        <li><strong>Connect one Meta channel — WhatsApp or Instagram — on a test account.</strong> It's the only untested part of the stack and the one most likely to cost us weeks.</li>
+        <li><strong>Change the account password.</strong> It's been passed around in chat and looks like a default.</li>
+        <li><strong>Set an AppSumo notification</strong> for the lifetime deal returning.</li>
+        <li><strong>Diarise 1 September</strong> to check Meta's published WhatsApp rates before quoting any client.</li>
+        <li><strong>Test Custom Functions against our own API</strong> — this decides whether phase 3 above is real or wishful.</li>
+      </ol>
+    </section>
+
+    <!-- ============ GAPS ============ -->
+    <section>
+      <div class="stack-s">
+        <span class="eyebrow">08 · Limits of this research</span>
+        <h2>What isn't verified yet</h2>
+      </div>
+      <p>Sections 01–07 come from public sources: DM Champ's marketing site and help centre, AppSumo verified reviews, Latka's revenue data, Meta's developer documentation and independent reviews. Sections 03b and 03c were <strong>checked directly inside the live account</strong> — the billing ledger, dashboard, channel status and plan features are all first-hand.</p>
+      <p>That session ended early, so four things remain open: the <strong>agent configuration in AI Studio</strong> (the playbook actually generated for Al Taher, and which model tier is running); <strong>whether an agency or account-switcher view exists anywhere</strong>, which settles the sub-account question above; the <strong>quality of the real conversations</strong> in the inbox; and whether <strong>Custom Functions can reach our own backend</strong>, which decides whether phase 3 is real.</p>
+      <p>Their <strong>YouTube channel</strong> is 195 videos, but it's a product tutorial library rather than a marketing channel — a large share is in Dutch, and none of the videos carry captions. The content duplicates their help centre, which is in English, in text, and more complete; that's what this research is built from. About eleven videos are in English and worth watching directly if the boss wants the walkthroughs covered.</p>
+    </section>
+
+  </div>
+
+  <footer class="colophon">
+    <span class="eyebrow">Sources</span>
+    <p class="srcs">
+      <a href="https://dmchamp.com/">dmchamp.com</a> ·
+      <a href="https://dmchamp.com/pricing/">pricing</a> ·
+      <a href="https://dmchamp.com/features/">features</a> ·
+      <a href="https://dmchamp.com/for-agencies/">for agencies</a> ·
+      <a href="https://help.dmchamp.com/">help centre</a> ·
+      <a href="https://www.youtube.com/@dmchamp">YouTube</a> ·
+      <a href="https://appsumo.com/products/dm-champ/reviews/">AppSumo reviews</a> ·
+      <a href="https://getlatka.com/companies/dmchamp.com">Latka revenue data</a> ·
+      <a href="https://lifetimedealtech.com/dm-champ-lifetime-deal-review-2026/">LifetimeDealTech</a> ·
+      <a href="https://katta.co/dm-champ-review/">KATTA.CO review</a> ·
+      <a href="https://developers.facebook.com/docs/instagram-platform/overview/">Meta Instagram Platform docs</a> ·
+      <a href="https://developers.facebook.com/documentation/business-messaging/whatsapp/solution-providers/app-review">Meta WhatsApp App Review</a> ·
+      <a href="https://blueticks.co/blog/whatsapp-business-api-pricing-2026">WhatsApp pricing 2026</a> ·
+      <a href="https://www.chatwoot.com/">Chatwoot</a>
+    </p>
+    <p>Model cost figures use current Anthropic list pricing. Competitor comparison figures originate from DM Champ's own comparison pages, which disclose the author's interest — treat them as directional.</p>
+  </footer>
+
+</div>

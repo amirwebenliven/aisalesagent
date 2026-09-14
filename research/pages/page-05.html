@@ -1,0 +1,206 @@
+<title>The Reseller Machinery</title>
+<!-- Shared head + style block. Copied verbatim into every page (artifacts must be self-contained). -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{--bg:#F2F5F4;--surface:#FFF;--surface-2:#E9EEEC;--line:#D2DCD9;--line-soft:#E2E9E7;--ink:#16211F;--ink-2:#3D4F4C;--muted:#647774;--accent:#0E6E63;--accent-2:#0A544B;--accent-wash:#E2F0ED;--brass:#A2691C;--brass-wash:#F7EDDF;--danger:#A03A31;--danger-wash:#F8E7E4;--measure:68ch;--radius:3px}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0D1413;--surface:#141F1D;--surface-2:#1B2725;--line:#2C3B38;--line-soft:#223230;--ink:#E6EDEB;--ink-2:#B7C6C3;--muted:#8B9D9A;--accent:#4FB5A6;--accent-2:#7FCFC2;--accent-wash:#122E2A;--brass:#D4A45E;--brass-wash:#2B2214;--danger:#E08A80;--danger-wash:#2E1A17}}
+:root[data-theme="dark"]{--bg:#0D1413;--surface:#141F1D;--surface-2:#1B2725;--line:#2C3B38;--line-soft:#223230;--ink:#E6EDEB;--ink-2:#B7C6C3;--muted:#8B9D9A;--accent:#4FB5A6;--accent-2:#7FCFC2;--accent-wash:#122E2A;--brass:#D4A45E;--brass-wash:#2B2214;--danger:#E08A80;--danger-wash:#2E1A17}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:"Public Sans",ui-sans-serif,system-ui,sans-serif;font-size:17px;line-height:1.65;margin:0;padding:0 20px 90px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:920px;margin:0 auto}
+h1,h2,h3{font-family:Spectral,ui-serif,Georgia,serif;text-wrap:balance;color:var(--ink);margin:0}
+h1{font-size:clamp(2rem,5vw,2.9rem);font-weight:700;line-height:1.1;letter-spacing:-.015em}
+h2{font-size:clamp(1.45rem,3vw,1.8rem);font-weight:600;line-height:1.22;letter-spacing:-.01em}
+h3{font-size:1.14rem;font-weight:600;line-height:1.3}
+p{margin:0;max-width:var(--measure)}
+.full p{max-width:none}
+a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:2px}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+strong{font-weight:600;color:var(--ink)}
+code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.88em;background:var(--surface-2);border:1px solid var(--line-soft);border-radius:2px;padding:.5px 5px;color:var(--ink-2)}
+.eyebrow{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.7rem;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.lede{font-family:Spectral,ui-serif,Georgia,serif;font-size:clamp(1.1rem,2vw,1.3rem);line-height:1.55;color:var(--ink-2);max-width:60ch}
+.stack-s{display:flex;flex-direction:column;gap:10px}
+section{display:flex;flex-direction:column;gap:18px}
+.sections{display:flex;flex-direction:column;gap:56px}
+header.masthead{display:flex;flex-direction:column;gap:20px;padding:34px 0 30px;border-bottom:2px solid var(--ink);margin-bottom:40px}
+.meta-row{display:flex;flex-wrap:wrap;gap:8px 24px;font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.73rem;color:var(--muted);letter-spacing:.03em}
+nav.pagenav{display:flex;flex-wrap:wrap;gap:6px;padding:22px 0 0}
+nav.pagenav a,nav.pagenav span{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.71rem;letter-spacing:.04em;padding:4px 9px;border:1px solid var(--line);border-radius:2px;background:var(--surface);color:var(--muted);text-decoration:none;white-space:nowrap}
+nav.pagenav a:hover{border-color:var(--accent);color:var(--accent)}
+nav.pagenav span.here{background:var(--accent-wash);border-color:var(--accent);color:var(--accent-2);font-weight:600}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:22px 24px;display:flex;flex-direction:column;gap:10px}
+.grid-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,265px),1fr));gap:16px}
+.grid-3{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:16px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;display:flex;flex-direction:column;gap:5px}
+.stat .num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:1.7rem;font-weight:600;line-height:1.05;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--ink)}
+.stat .cap{font-size:.86rem;color:var(--muted);line-height:1.4}
+.callout{border-radius:var(--radius);padding:20px 24px;display:flex;flex-direction:column;gap:10px;border:1px solid}
+.callout p{max-width:62ch}
+.callout.warn{background:var(--brass-wash);border-color:var(--brass)}
+.callout.risk{background:var(--danger-wash);border-color:var(--danger)}
+.callout.note{background:var(--accent-wash);border-color:var(--accent)}
+.callout .tag{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.7rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase}
+.callout.warn .tag{color:var(--brass)}.callout.risk .tag{color:var(--danger)}.callout.note .tag{color:var(--accent-2)}
+.verdict{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:var(--radius);padding:28px 30px;display:flex;flex-direction:column;gap:14px}
+.verdict h2{color:var(--accent-2)}
+.table-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:440px;font-size:.92rem}
+th,td{text-align:left;padding:11px 16px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+thead th{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.67rem;font-weight:600;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);background:var(--surface-2);border-bottom:1px solid var(--line);white-space:nowrap}
+tbody tr:last-child td{border-bottom:none}
+td.num,th.num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.highlight td{background:var(--accent-wash);font-weight:500}
+caption{caption-side:bottom;text-align:left;padding:10px 16px;font-size:.81rem;color:var(--muted);line-height:1.5}
+ul.clean{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:9px;max-width:var(--measure)}
+ul.clean>li{position:relative;padding-left:20px}
+ul.clean>li::before{content:"";position:absolute;left:3px;top:.66em;width:6px;height:1px;background:var(--accent)}
+ol.checks{margin:0;padding-left:1.25em;display:flex;flex-direction:column;gap:9px;max-width:var(--measure)}
+ol.checks li::marker{font-family:"IBM Plex Mono",ui-monospace,monospace;color:var(--accent);font-size:.85em}
+.kicker{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.72rem;letter-spacing:.05em;color:var(--muted);background:var(--surface-2);border:1px solid var(--line-soft);border-radius:2px;padding:1px 7px;white-space:nowrap}
+footer.colophon{margin-top:70px;padding-top:26px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:12px;font-size:.87rem;color:var(--muted)}
+footer.colophon a{color:var(--muted)}
+.phases{display:flex;flex-direction:column;gap:2px}
+.phase{display:grid;grid-template-columns:58px minmax(0,1fr);gap:0 20px;background:var(--surface);border:1px solid var(--line);padding:22px 24px;align-items:start}
+.phase:first-child{border-radius:var(--radius) var(--radius) 0 0}
+.phase:last-child{border-radius:0 0 var(--radius) var(--radius)}
+.phase+.phase{border-top:none}
+.phase .n{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:1.5rem;font-weight:600;color:var(--accent);line-height:1;font-variant-numeric:tabular-nums;padding-top:2px}
+.phase .body{display:flex;flex-direction:column;gap:8px}
+.phase .when{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.71rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+@media (max-width:560px){body{font-size:16px;padding:0 16px 70px}.verdict{padding:22px 20px}.phase{grid-template-columns:38px minmax(0,1fr);gap:0 14px;padding:20px 18px}.phase .n{font-size:1.2rem}}
+</style>
+
+<div class="wrap">
+<header class="masthead">
+  <div class="stack-s">
+    <span class="eyebrow">Part 5 of 8 · The reseller model</span>
+    <h1>The reseller machinery</h1>
+  </div>
+  <p class="lede">This is what makes foundergrowth.ai possible, and it's the part of the product that is genuinely hard to rebuild. It is also, per part 4, the part we may not currently have access to.</p>
+  <nav class="pagenav"><a href="https://claude.ai/code/artifact/f5bd2760-dfce-4871-8be3-60018cdc0112">1 - Verdict</a><a href="https://claude.ai/code/artifact/6bd1af07-636a-4ac0-b8a7-1d97564dd414">2 - Product</a><a href="https://claude.ai/code/artifact/a03c5511-8bd0-49a7-9afe-dfefffd029fc">3 - Pricing</a><a href="https://claude.ai/code/artifact/94633e09-dda4-4ca6-944a-11ca39bda24a">4 - Our Account</a><span class="here">5 - Reseller</span><a href="https://claude.ai/code/artifact/6d68e98c-e212-44fe-a604-74d8e2e6ce53">6 - Build vs Buy</a><a href="https://claude.ai/code/artifact/bea617de-71fe-4c14-8d1f-4ce922ed8e15">7 - AI Costs</a><a href="https://claude.ai/code/artifact/9f7e25ee-06af-4622-b0f2-bb56f901c569">8 - Alternatives</a><a href="https://claude.ai/code/artifact/4d8015de-7ba6-431f-8b5d-7f8955033e5c">9 - Demo Guide</a></nav>
+</header>
+
+<div class="sections">
+
+<section>
+  <div class="stack-s"><span class="eyebrow">Branding</span><h2>What white-label covers</h2></div>
+  <p>When configured, <strong>zero DM Champ branding is visible to clients</strong>. Their own documentation puts it as: clients "have no idea they are using the platform under the hood." We confirmed this holds in practice — see part 4.</p>
+  <div class="grid-2">
+    <div class="card">
+      <h3>Visual identity</h3>
+      <ul class="clean">
+        <li>App name and company legal name</li>
+        <li>Logo with a separate dark-mode version, favicon, app icon</li>
+        <li>Primary, accent, success and danger colours</li>
+        <li>Heading and body fonts</li>
+        <li>Six pre-made themes (Nebula, Bloom, Ember, Tidal, Mono, Original)</li>
+        <li>Page backgrounds, card styles, corner radius, layout density</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Everything else</h3>
+      <ul class="clean">
+        <li>Login page tagline and background</li>
+        <li>Outbound emails: logo, colour, footer tagline, up to four custom links, default language</li>
+        <li>SEO metadata, custom Terms/Privacy URLs, support email</li>
+        <li>Hideable: help menu, API reference, changelog</li>
+        <li>A domain can be narrowed to expose only certain modules</li>
+      </ul>
+    </div>
+  </div>
+  <p><strong>Requires</strong> the Agency tier or above, or AppSumo tiers 3–6. Not available on the Business plan.</p>
+</section>
+
+<section>
+  <div class="stack-s"><span class="eyebrow">Setup</span><h2>Custom domain</h2></div>
+  <ol class="checks">
+    <li>Enter the subdomain (<code>app.youragency.com</code>) in the Custom domain card</li>
+    <li>Add a <strong>CNAME</strong> at the registrar pointing to <code>tenants.youraiconnector.com</code></li>
+    <li>The platform detects DNS and auto-provisions SSL via Let's Encrypt within minutes to hours</li>
+  </ol>
+  <p>Separate branded domains are available for docs, API and MCP endpoints, each with its own certificate. <strong>Cloudflare gotcha:</strong> SSL/TLS must be set to "Full (strict)" or you get redirect errors.</p>
+  <p>Email sending can stay on their infrastructure with our branding, or route through our own Mailgun/SMTP (Postmark, SES, SendGrid, Resend). Different client groups can use different sender identities.</p>
+  <p class="lede" style="font-size:1rem;font-family:inherit;color:var(--muted)">The CNAME target <code>tenants.youraiconnector.com</code> is an interesting tell — it suggests the multi-tenant layer may be shared with, or spun out of, a separate product. Noted, but not decision-relevant.</p>
+</section>
+
+<section>
+  <div class="stack-s"><span class="eyebrow">Client management</span><h2>Sub-accounts</h2></div>
+  <p>Creating a client is a three-step modal: account details (name + email, which becomes their login) → business info (name, address, country, language, timezone) → features (channels, AI capabilities, contact limits, seats, optional setup wizard). You choose whether to email the client their credentials or hold them yourself.</p>
+  <div class="grid-2">
+    <div class="card">
+      <h3>What the agency gets</h3>
+      <ul class="clean">
+        <li>Sub-accounts table with credit usage and campaign status</li>
+        <li><strong>"Sign in as user"</strong> — support a client without knowing their password</li>
+        <li>Read-only inbox view per sub-account</li>
+        <li>Bulk-copy campaigns and agents into client accounts</li>
+        <li><strong>Snapshots</strong> — package an entire setup as a reusable template and deploy to many clients at once</li>
+        <li>Credit allocation, notification routing, access controls</li>
+        <li>Soft/hard block a client without deleting their data</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>What the client sees</h3>
+      <ul class="clean">
+        <li>Their own contacts, campaigns and AI agents</li>
+        <li>A billing page — reselling mode only</li>
+        <li>Team management</li>
+        <li>Nothing we've hidden via Menu Visibility</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="stack-s"><span class="eyebrow">The clever bit</span><h2>How the markup works</h2></div>
+  <p>A sub-account's "spending limit" is <strong>a cap on how much of our credit pool that client may spend — not a separate pot handed to them</strong>. Every client action deducts from both their limit and our agency balance at once.</p>
+  <p>On top of that, we set a <strong>per-action rate per sub-account</strong>. Their worked example: a client burns <strong>0.5 credits per action while our pool pays 0.2</strong>. That 2.5× spread is our margin, applied automatically, with no reconciliation on our side and without pricing clients at a loss.</p>
+</section>
+
+<section>
+  <div class="stack-s"><span class="eyebrow">Getting paid</span><h2>Two billing modes</h2></div>
+  <div class="table-scroll full">
+    <table>
+      <thead><tr><th></th><th>Managed (default)</th><th>Reselling (Stripe)</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Payment</strong></td><td>We invoice however we already do</td><td>Client pays through our connected Stripe, our markup applied automatically</td></tr>
+        <tr><td><strong>Client sees</strong></td><td>No plan selector, no payment page at all</td><td>Full billing portal on our domain: plans, prices, invoices, cards</td></tr>
+        <tr><td><strong>Trials</strong></td><td>Hand-managed</td><td>Built-in, 1–90 days per plan</td></tr>
+        <tr><td><strong>Signup</strong></td><td>We create the account</td><td>Client self-serves via payment link, then an auto-provisioned wizard</td></tr>
+        <tr><td><strong>Top-ups</strong></td><td>We allocate</td><td>Client buys their own; webhook auto-recharge prevents cutoff</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout note">
+    <span class="tag">Recommended start</span>
+    <p><strong>Managed mode</strong> is the right starting point for us — it works where Stripe is awkward, fits existing invoicing, keeps full control while we learn the product, and keeps the client payment relationship ours (which is also the platform-risk mitigation in part 6). Reselling mode is the scale play once the offer is proven.</p>
+  </div>
+  <h3>Stated restrictions</h3>
+  <ul class="clean">
+    <li>A single sub-account cannot be shared across multiple brands</li>
+    <li>Client pricing must stay above platform minimums — the minimums aren't published</li>
+    <li>When a client's credits run out, the AI stops until they buy more</li>
+  </ul>
+</section>
+
+<section>
+  <div class="stack-s"><span class="eyebrow">Why this matters</span><h2>What we'd be rebuilding</h2></div>
+  <p>If we build our own, <strong>this entire layer is on us</strong>, and it is not small:</p>
+  <ul class="clean">
+    <li>Multi-tenant data isolation</li>
+    <li>Per-tenant theming — colours, fonts, logos, themes, login pages, email templates</li>
+    <li>Custom domain onboarding with automated ACME/Let's Encrypt issuance and renewal</li>
+    <li>"Sign in as user" impersonation with a proper audit trail</li>
+    <li>A credit ledger with per-tenant markup rates, spending caps and atomic double-deduction</li>
+    <li>Stripe Connect billing: plans, trials, invoices, auto-recharge webhooks</li>
+    <li>Snapshot export/import across tenants</li>
+    <li>Per-tenant notification routing and granular menu visibility</li>
+  </ul>
+  <p>Realistically <strong>three to five months of work on its own</strong>, entirely separate from the AI agent and the messaging integrations. Unglamorous, security-sensitive plumbing — and exactly what we'd be renting for $248.50 a month.</p>
+</section>
+
+</div>
+</div>

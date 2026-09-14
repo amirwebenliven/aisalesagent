@@ -1,0 +1,181 @@
+<title>What the AI Actually Costs</title>
+<!-- Shared head + style block. Copied verbatim into every page (artifacts must be self-contained). -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{--bg:#F2F5F4;--surface:#FFF;--surface-2:#E9EEEC;--line:#D2DCD9;--line-soft:#E2E9E7;--ink:#16211F;--ink-2:#3D4F4C;--muted:#647774;--accent:#0E6E63;--accent-2:#0A544B;--accent-wash:#E2F0ED;--brass:#A2691C;--brass-wash:#F7EDDF;--danger:#A03A31;--danger-wash:#F8E7E4;--measure:68ch;--radius:3px}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0D1413;--surface:#141F1D;--surface-2:#1B2725;--line:#2C3B38;--line-soft:#223230;--ink:#E6EDEB;--ink-2:#B7C6C3;--muted:#8B9D9A;--accent:#4FB5A6;--accent-2:#7FCFC2;--accent-wash:#122E2A;--brass:#D4A45E;--brass-wash:#2B2214;--danger:#E08A80;--danger-wash:#2E1A17}}
+:root[data-theme="dark"]{--bg:#0D1413;--surface:#141F1D;--surface-2:#1B2725;--line:#2C3B38;--line-soft:#223230;--ink:#E6EDEB;--ink-2:#B7C6C3;--muted:#8B9D9A;--accent:#4FB5A6;--accent-2:#7FCFC2;--accent-wash:#122E2A;--brass:#D4A45E;--brass-wash:#2B2214;--danger:#E08A80;--danger-wash:#2E1A17}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:"Public Sans",ui-sans-serif,system-ui,sans-serif;font-size:17px;line-height:1.65;margin:0;padding:0 20px 90px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:920px;margin:0 auto}
+h1,h2,h3{font-family:Spectral,ui-serif,Georgia,serif;text-wrap:balance;color:var(--ink);margin:0}
+h1{font-size:clamp(2rem,5vw,2.9rem);font-weight:700;line-height:1.1;letter-spacing:-.015em}
+h2{font-size:clamp(1.45rem,3vw,1.8rem);font-weight:600;line-height:1.22;letter-spacing:-.01em}
+h3{font-size:1.14rem;font-weight:600;line-height:1.3}
+p{margin:0;max-width:var(--measure)}
+.full p{max-width:none}
+a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:2px}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+strong{font-weight:600;color:var(--ink)}
+code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.88em;background:var(--surface-2);border:1px solid var(--line-soft);border-radius:2px;padding:.5px 5px;color:var(--ink-2)}
+.eyebrow{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.7rem;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.lede{font-family:Spectral,ui-serif,Georgia,serif;font-size:clamp(1.1rem,2vw,1.3rem);line-height:1.55;color:var(--ink-2);max-width:60ch}
+.stack-s{display:flex;flex-direction:column;gap:10px}
+section{display:flex;flex-direction:column;gap:18px}
+.sections{display:flex;flex-direction:column;gap:56px}
+header.masthead{display:flex;flex-direction:column;gap:20px;padding:34px 0 30px;border-bottom:2px solid var(--ink);margin-bottom:40px}
+.meta-row{display:flex;flex-wrap:wrap;gap:8px 24px;font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.73rem;color:var(--muted);letter-spacing:.03em}
+nav.pagenav{display:flex;flex-wrap:wrap;gap:6px;padding:22px 0 0}
+nav.pagenav a,nav.pagenav span{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.71rem;letter-spacing:.04em;padding:4px 9px;border:1px solid var(--line);border-radius:2px;background:var(--surface);color:var(--muted);text-decoration:none;white-space:nowrap}
+nav.pagenav a:hover{border-color:var(--accent);color:var(--accent)}
+nav.pagenav span.here{background:var(--accent-wash);border-color:var(--accent);color:var(--accent-2);font-weight:600}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:22px 24px;display:flex;flex-direction:column;gap:10px}
+.grid-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,265px),1fr));gap:16px}
+.grid-3{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:16px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;display:flex;flex-direction:column;gap:5px}
+.stat .num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:1.7rem;font-weight:600;line-height:1.05;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--ink)}
+.stat .cap{font-size:.86rem;color:var(--muted);line-height:1.4}
+.callout{border-radius:var(--radius);padding:20px 24px;display:flex;flex-direction:column;gap:10px;border:1px solid}
+.callout p{max-width:62ch}
+.callout.warn{background:var(--brass-wash);border-color:var(--brass)}
+.callout.risk{background:var(--danger-wash);border-color:var(--danger)}
+.callout.note{background:var(--accent-wash);border-color:var(--accent)}
+.callout .tag{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.7rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase}
+.callout.warn .tag{color:var(--brass)}.callout.risk .tag{color:var(--danger)}.callout.note .tag{color:var(--accent-2)}
+.verdict{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:var(--radius);padding:28px 30px;display:flex;flex-direction:column;gap:14px}
+.verdict h2{color:var(--accent-2)}
+.table-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:440px;font-size:.92rem}
+th,td{text-align:left;padding:11px 16px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+thead th{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.67rem;font-weight:600;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);background:var(--surface-2);border-bottom:1px solid var(--line);white-space:nowrap}
+tbody tr:last-child td{border-bottom:none}
+td.num,th.num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.highlight td{background:var(--accent-wash);font-weight:500}
+caption{caption-side:bottom;text-align:left;padding:10px 16px;font-size:.81rem;color:var(--muted);line-height:1.5}
+ul.clean{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:9px;max-width:var(--measure)}
+ul.clean>li{position:relative;padding-left:20px}
+ul.clean>li::before{content:"";position:absolute;left:3px;top:.66em;width:6px;height:1px;background:var(--accent)}
+ol.checks{margin:0;padding-left:1.25em;display:flex;flex-direction:column;gap:9px;max-width:var(--measure)}
+ol.checks li::marker{font-family:"IBM Plex Mono",ui-monospace,monospace;color:var(--accent);font-size:.85em}
+.kicker{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.72rem;letter-spacing:.05em;color:var(--muted);background:var(--surface-2);border:1px solid var(--line-soft);border-radius:2px;padding:1px 7px;white-space:nowrap}
+footer.colophon{margin-top:70px;padding-top:26px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:12px;font-size:.87rem;color:var(--muted)}
+footer.colophon a{color:var(--muted)}
+.phases{display:flex;flex-direction:column;gap:2px}
+.phase{display:grid;grid-template-columns:58px minmax(0,1fr);gap:0 20px;background:var(--surface);border:1px solid var(--line);padding:22px 24px;align-items:start}
+.phase:first-child{border-radius:var(--radius) var(--radius) 0 0}
+.phase:last-child{border-radius:0 0 var(--radius) var(--radius)}
+.phase+.phase{border-top:none}
+.phase .n{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:1.5rem;font-weight:600;color:var(--accent);line-height:1;font-variant-numeric:tabular-nums;padding-top:2px}
+.phase .body{display:flex;flex-direction:column;gap:8px}
+.phase .when{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.71rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+@media (max-width:560px){body{font-size:16px;padding:0 16px 70px}.verdict{padding:22px 20px}.phase{grid-template-columns:38px minmax(0,1fr);gap:0 14px;padding:20px 18px}.phase .n{font-size:1.2rem}}
+</style>
+
+<div class="wrap">
+<header class="masthead">
+  <div class="stack-s">
+    <span class="eyebrow">Part 7 of 8 · Model economics</span>
+    <h1>What the AI actually costs</h1>
+  </div>
+  <p class="lede">Would ChatGPT or Gemini make building cheaper? Yes on the model bill, and no on the decision. The AI API is a rounding error next to what actually makes building expensive.</p>
+  <nav class="pagenav"><a href="index.html">1 - Verdict</a><a href="02-product.html">2 - Product</a><a href="03-pricing.html">3 - Pricing</a><a href="04-our-account.html">4 - Our Account</a><a href="05-reseller.html">5 - Reseller</a><a href="06-build-vs-buy.html">6 - Build vs Buy</a><span class="here">7 - AI Costs</span><a href="08-alternatives.html">8 - Alternatives</a><a href="09-demo-guide.html">9 - Demo Guide</a></nav>
+</header>
+
+<div class="sections">
+
+<section>
+  <div class="callout warn">
+    <span class="tag">Practical blocker first</span>
+    <p><strong>You cannot use ChatGPT inside DM Champ.</strong> Their bring-your-own-key feature is <strong>Anthropic-only</strong> — the key must start with <code>sk-ant-</code> and come from your own console.anthropic.com account; resellers and proxies are explicitly rejected.</p>
+    <p>So the ChatGPT question only applies to the "build our own" scenario. If we resell, the lever that matters is <strong>tier selection</strong>, not provider.</p>
+  </div>
+</section>
+
+<section>
+  <div class="stack-s"><span class="eyebrow">The comparison</span><h2>Cost per AI reply</h2></div>
+  <p>Modelling one reply the way a DM bot actually works: ~7,000 cached input tokens (the playbook and FAQ prefix, identical on every reply), ~1,000 fresh input tokens (the new message plus recent history), ~150 output tokens. All three providers price a cache read at roughly 10% of the input rate.</p>
+  <div class="table-scroll full">
+    <table>
+      <thead><tr><th>Model</th><th class="num">Input $/1M</th><th class="num">Output $/1M</th><th class="num">Cost per reply</th></tr></thead>
+      <tbody>
+        <tr><td>Gemini 2.5 Flash-Lite</td><td class="num">$0.10</td><td class="num">$0.40</td><td class="num">$0.00023</td></tr>
+        <tr><td>GPT-5.6-luna</td><td class="num">$0.20</td><td class="num">$1.20</td><td class="num">$0.00052</td></tr>
+        <tr><td>Gemini 2.5 Flash</td><td class="num">$0.30</td><td class="num">$2.50</td><td class="num">$0.00089</td></tr>
+        <tr><td>Gemini 3.7 Flash</td><td class="num">$0.75</td><td class="num">$3.75</td><td class="num">$0.0018</td></tr>
+        <tr><td>Claude Haiku 4.5</td><td class="num">$1.00</td><td class="num">$5.00</td><td class="num">$0.00245</td></tr>
+        <tr><td>GPT-5.6-terra</td><td class="num">$2.00</td><td class="num">$12.00</td><td class="num">$0.0052</td></tr>
+        <tr><td>Claude Sonnet 5</td><td class="num">$3.00</td><td class="num">$15.00</td><td class="num">$0.0074</td></tr>
+        <tr><td>GPT-5.6-sol</td><td class="num">$5.00</td><td class="num">$30.00</td><td class="num">$0.013</td></tr>
+        <tr class="highlight"><td><strong>DM Champ, Max tier</strong></td><td class="num">—</td><td class="num">—</td><td class="num"><strong>~$0.050</strong></td></tr>
+      </tbody>
+      <caption>DM Champ's figure is 0.25 credits × ~2 billed actions per visible reply, per the verified ledger in part 4. The cheapest API is roughly 200× cheaper per reply.</caption>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="stack-s"><span class="eyebrow">At scale</span><h2>What it costs per year</h2></div>
+  <p>100 clients × 500 replies each = 50,000 replies a month:</p>
+  <div class="table-scroll full">
+    <table>
+      <thead><tr><th>Option</th><th class="num">Monthly</th><th class="num">Yearly</th></tr></thead>
+      <tbody>
+        <tr><td>Gemini 2.5 Flash-Lite</td><td class="num">$12</td><td class="num">$140</td></tr>
+        <tr><td>GPT-5.6-luna</td><td class="num">$26</td><td class="num">$310</td></tr>
+        <tr><td>Gemini 2.5 Flash</td><td class="num">$45</td><td class="num">$535</td></tr>
+        <tr><td>Claude Haiku 4.5</td><td class="num">$123</td><td class="num">$1,470</td></tr>
+        <tr><td>GPT-5.6-terra</td><td class="num">$260</td><td class="num">$3,120</td></tr>
+        <tr><td>Claude Sonnet 5</td><td class="num">$370</td><td class="num">$4,440</td></tr>
+        <tr><td>GPT-5.6-sol</td><td class="num">$650</td><td class="num">$7,800</td></tr>
+        <tr class="highlight"><td><strong>DM Champ, Max tier</strong></td><td class="num"><strong>$2,500</strong></td><td class="num"><strong>$30,000</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="stack-s"><span class="eyebrow">Why it doesn't decide anything</span><h2>A rounding error</h2></div>
+  <div class="verdict">
+    <p><strong>The entire spread between the cheapest and most expensive AI API is about $7,700 a year. The build itself is $30,000–$150,000 plus 12–24 months of two developers' time.</strong></p>
+    <p>Choosing Gemini Flash-Lite over Claude Sonnet saves roughly $4,300 a year. It does not move a six-figure, two-year decision.</p>
+  </div>
+  <div class="table-scroll full">
+    <table>
+      <thead><tr><th>Work</th><th class="num">Effort</th><th>Affected by AI provider?</th></tr></thead>
+      <tbody>
+        <tr><td>Omnichannel messaging infrastructure</td><td class="num">3–6 months</td><td>No</td></tr>
+        <tr><td>Multi-tenant white-label platform</td><td class="num">3–5 months</td><td>No</td></tr>
+        <tr><td>The application — inbox, CRM, campaigns, booking</td><td class="num">3–6 months</td><td>No</td></tr>
+        <tr><td><strong>Meta App Review / Advanced Access</strong></td><td class="num">Weeks, rejection-prone</td><td><strong>No</strong></td></tr>
+        <tr><td>The AI agent layer</td><td class="num">4–8 weeks</td><td>Marginally</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p><strong>Switching AI provider optimises the one line item that was already cheap.</strong></p>
+</section>
+
+<section>
+  <div class="stack-s"><span class="eyebrow">The trap</span><h2>Why cheapest isn't right either</h2></div>
+  <p>This product's entire value is the AI <strong>not embarrassing us in front of a paying client's prospects</strong>. DM Champ's own marketing leads with a $40,000 deposit closed by the bot. That is not a job for a Flash-Lite-class model.</p>
+  <ol class="checks">
+    <li><strong>Tool calling has to be reliable.</strong> The live ledger in part 4 shows the bot firing <code>setContactEmail</code>, <code>alertHuman</code> and <code>createTask</code>, plus name and email extraction — that <em>is</em> the mechanism of the product. Weak models are inconsistent at structured tool use, and a missed <code>alertHuman</code> means a hot lead sits unanswered.</li>
+    <li><strong>Long-context memory matters.</strong> DM Champ's own interface warns that its budget Mini tier has "a higher chance of small mistakes or hallucinations, and a lighter memory in long conversations." That's the vendor describing their own cheap tier's failure mode.</li>
+    <li><strong>One bad reply costs more than a year of token savings.</strong> The entire annual model bill for 100 clients on a good model is $1,500–$4,500. A single hallucinated price quote to a real customer can cost more than that.</li>
+  </ol>
+  <p>Note what DM Champ themselves chose: <strong>Claude Sonnet for their Pro tier</strong>, and a purpose-tuned model for Max. They did not pick the cheapest API on the market — and they're the ones under margin pressure.</p>
+</section>
+
+<section>
+  <div class="stack-s"><span class="eyebrow">Conclusion</span><h2>The practical answer</h2></div>
+  <ul class="clean">
+    <li><strong>If we resell:</strong> the ChatGPT question is moot — bring-your-own-key is Anthropic-only. Focus on getting access to that setting and running the Pro tier.</li>
+    <li><strong>If we build:</strong> pick the model on quality, not price. Even the expensive options cost a few thousand a year at 100 clients.</li>
+    <li><strong>Either way:</strong> use aggressive prompt caching — the playbook prefix is identical on every call, so ~90% of input tokens should be cache reads — and reserve a cheap model for genuinely trivial sub-tasks like name extraction, which is, tellingly, exactly what DM Champ bills as a separate action.</li>
+  </ul>
+  <p><strong>The build-versus-buy answer in part 6 is unchanged by any of this.</strong></p>
+</section>
+
+</div>
+</div>

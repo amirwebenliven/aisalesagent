@@ -1,0 +1,433 @@
+// Multi-tenant from the first migration. EVERY tenant-owned row carries
+// organizationId, and every query goes through lib/tenant.ts so the scope can
+// never be forgotten. Retrofitting this later is the expensive mistake.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tenancy & people
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Organization {
+  id       String @id @default(cuid())
+  name     String
+  slug     String @unique
+  timezone String @default("Asia/Kolkata")
+  locale   String @default("en")
+
+  // Null = use the platform MeshAPI key. Set = tenant brought their own (BYOK).
+  modelProvider  String? // "meshapi" | "openai" | "anthropic" | "custom"
+  modelBaseUrl   String?
+  modelApiKeyEnc String? @db.Text // encrypted, lib/crypto.ts
+  modelChat      String?
+  modelUtility   String?
+
+  dailyCostCapUsd Decimal @default(25.00) @db.Decimal(10, 2)
+  isActive        Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships   Membership[]
+  agents        Agent[]
+  channels      ChannelConnection[]
+  contacts      Contact[]
+  conversations Conversation[]
+  messages      Message[]
+  knowledge     KnowledgeSource[]
+  faqs          Faq[]
+  dataSources   DataSource[]
+  jobs          ScheduledJob[]
+  usage         UsageRecord[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique // ALWAYS stored lowercased — see lib/auth.ts
+  name         String?
+  passwordHash String?
+  createdAt    DateTime @default(now())
+
+  memberships Membership[]
+}
+
+model Membership {
+  id             String   @id @default(cuid())
+  userId         String
+  organizationId String
+  role           Role     @default(MEMBER)
+  createdAt      DateTime @default(now())
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The agent — field names mirror the structure DM Champ uses, because the
+// structure is good and it makes our research directly transferable.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Agent {
+  id             String @id @default(cuid())
+  organizationId String
+  name           String
+
+  persona          String  @db.Text // who the AI is
+  goal             String  @db.Text // what a successful conversation achieves
+  companyInfo      String  @db.Text // the business, products, customers
+  rules            String  @db.Text // guardrails — what it must never do
+  conversationFlow String  @db.Text // numbered steps
+  alertHumanWhen   String  @db.Text // escalation triggers
+  concludeWhen     String  @db.Text // when to stop on its own
+  extraContext     String? @db.Text // temporary: a running promotion, etc.
+
+  primaryLanguage String  @default("en")
+  modelOverride   String?
+
+  // Realism — cheap to copy, and most of why a good agent doesn't read as a bot.
+  replyDelayMinMs   Int     @default(15000)
+  replyDelayMaxMs   Int     @default(30000)
+  splitMessages     Boolean @default(true)
+  maxRepliesPerTurn Int     @default(3)
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization  Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  channels      ChannelConnection[]
+  conversations Conversation[]
+
+  @@index([organizationId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Channels
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum ChannelKind {
+  WIDGET
+  TELEGRAM
+  WHATSAPP_QR
+  WHATSAPP_CLOUD
+  EMAIL
+  INSTAGRAM
+  MESSENGER
+}
+
+enum ChannelStatus {
+  CONNECTING
+  ACTIVE
+  PAUSED
+  FAILED
+}
+
+model ChannelConnection {
+  id             String        @id @default(cuid())
+  organizationId String
+  agentId        String?
+  kind           ChannelKind
+  displayName    String
+  externalId     String? // bot id, phone number, WAHA session name
+  status         ChannelStatus @default(CONNECTING)
+
+  // ENCRYPTED AT REST. Never log, never return to the client, never put in an
+  // error message. These are keys to a customer's WhatsApp and mailbox.
+  credentialsEnc String? @db.Text
+
+  // Inbound webhook secret path segment — unguessable, per connection.
+  webhookSecret String @unique @default(cuid())
+
+  // WhatsApp QR warm-up (CLAUDE.md §9). Null for every other channel.
+  warmupStartedAt DateTime?
+  dailySendCap    Int?
+
+  lastErrorAt      DateTime?
+  lastErrorMessage String?   @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  agent         Agent?         @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  conversations Conversation[]
+
+  @@index([organizationId, kind])
+  @@index([webhookSecret])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Conversations
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Contact {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String?
+  email          String?
+  phone          String?
+  locale         String?
+  tags           String[] @default([])
+  notes          String?  @db.Text
+  botExcluded    Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  conversations Conversation[]
+
+  @@index([organizationId])
+  @@index([organizationId, phone])
+  @@index([organizationId, email])
+}
+
+enum ConversationState {
+  AI_ACTIVE
+  HUMAN_ACTIVE
+  CLOSED
+}
+
+model Conversation {
+  id                  String            @id @default(cuid())
+  organizationId      String
+  contactId           String
+  channelConnectionId String
+  agentId             String?
+  state               ConversationState @default(AI_ACTIVE)
+
+  // Rolling summary of turns older than the verbatim window (lib/ai/prompt.ts).
+  summary       String?   @db.Text
+  lastMessageAt DateTime  @default(now())
+  closedAt      DateTime?
+
+  // Enforced against MAX_COST_USD_PER_CONVERSATION.
+  totalCostUsd Decimal @default(0) @db.Decimal(10, 6)
+
+  createdAt DateTime @default(now())
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  contact      Contact           @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  channel      ChannelConnection @relation(fields: [channelConnectionId], references: [id], onDelete: Cascade)
+  agent        Agent?            @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  messages     Message[]
+
+  @@index([organizationId, state, lastMessageAt])
+  @@index([channelConnectionId])
+}
+
+enum Direction {
+  INBOUND
+  OUTBOUND
+}
+
+model Message {
+  id             String    @id @default(cuid())
+  organizationId String
+  conversationId String
+  direction      Direction
+  body           String    @db.Text
+  mediaUrl       String?
+
+  // THE deduplication key. Every provider redelivers; without this, real
+  // customers get duplicate replies and we pay for each one. See CLAUDE.md §3.
+  providerId String? @unique
+
+  aiGenerated  Boolean  @default(false)
+  sentByUserId String?
+  toolCalls    Json?
+  model        String?
+  costUsd      Decimal? @db.Decimal(10, 6)
+
+  createdAt DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@index([organizationId, createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Knowledge base — a SNAPSHOT of the customer's site, never a live link.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum SourceStatus {
+  PENDING
+  CRAWLING
+  READY
+  FAILED
+}
+
+model KnowledgeSource {
+  id             String       @id @default(cuid())
+  organizationId String
+  url            String
+  pageCount      Int          @default(0)
+  faqCount       Int          @default(0)
+  status         SourceStatus @default(PENDING)
+  lastCrawledAt  DateTime?
+  errorMessage   String?      @db.Text
+
+  createdAt DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  faqs         Faq[]
+
+  @@index([organizationId])
+}
+
+model Faq {
+  id             String  @id @default(cuid())
+  organizationId String
+  sourceId       String?
+  question       String  @db.Text
+  answer         String  @db.Text
+  sourceUrl      String?
+
+  // Hand-written FAQs outrank generated ones at retrieval time.
+  isManual Boolean @default(false)
+  useCount Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  source       KnowledgeSource? @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([sourceId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Live data — the differentiator. The AI answers from the customer's OWN
+// database, not just a crawl.
+//
+// SAFETY: the model NEVER writes SQL. A human defines named, parameterised,
+// read-only queries here; the model may only call them by name with typed
+// arguments. See lib/data/connector.ts.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum DataSourceKind {
+  POSTGRES
+  MYSQL
+  REST
+}
+
+model DataSource {
+  id             String         @id @default(cuid())
+  organizationId String
+  name           String
+  kind           DataSourceKind
+
+  // ENCRYPTED. For POSTGRES/MYSQL a connection string that MUST point at a
+  // read-only role. For REST, the base URL plus auth header.
+  configEnc String @db.Text
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  queries      DataQuery[]
+
+  @@index([organizationId])
+}
+
+model DataQuery {
+  id           String @id @default(cuid())
+  dataSourceId String
+
+  // What the model sees. The description IS the prompt — it decides whether
+  // the model calls this at the right moment.
+  name        String // snake_case, e.g. "check_order_status"
+  description String @db.Text
+
+  // JSON Schema for the arguments. Validated before execution, always.
+  parameters Json
+
+  // SQL with $1,$2… placeholders, or a REST path template. Parameters are
+  // bound by the driver — never interpolated into the string.
+  statement String @db.Text
+
+  maxRows   Int     @default(20)
+  timeoutMs Int     @default(5000)
+  isActive  Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  dataSource DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
+
+  @@unique([dataSourceId, name])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scheduling & usage
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum JobKind {
+  FOLLOW_UP
+  REMINDER
+  CRAWL_REFRESH
+}
+
+enum JobStatus {
+  PENDING
+  DONE
+  CANCELLED
+  FAILED
+}
+
+model ScheduledJob {
+  id             String    @id @default(cuid())
+  organizationId String
+  conversationId String?
+  kind           JobKind
+  runAt          DateTime
+  payload        Json
+  status         JobStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([status, runAt])
+  @@index([organizationId])
+}
+
+// Append-only. Every model call lands here — this is how "what does a
+// conversation cost?" gets answered, which is the question the business
+// model rests on.
+model UsageRecord {
+  id             String   @id @default(cuid())
+  organizationId String
+  conversationId String?
+  kind           String // "chat" | "utility" | "embedding" | "crawl"
+  model          String
+  promptTokens   Int      @default(0)
+  cachedTokens   Int      @default(0)
+  outputTokens   Int      @default(0)
+  costUsd        Decimal  @default(0) @db.Decimal(10, 6)
+  byok           Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+}

@@ -1,0 +1,24 @@
+# Postgres 17 already runs natively on this machine, so it is not included here.
+# Create the database once:  createdb -U postgres aiagent
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    volumes: ["redis-data:/data"]
+    command: redis-server --appendonly yes
+
+  # WhatsApp QR bridge. Unofficial protocol — read CLAUDE.md §9 before shipping this.
+  waha:
+    image: devlikeapro/waha:latest
+    ports: ["3001:3000"]
+    environment:
+      WHATSAPP_HOOK_URL: "http://host.docker.internal:3000/api/webhooks/whatsapp"
+      WHATSAPP_HOOK_EVENTS: "message,session.status"
+      WHATSAPP_RESTART_ALL_SESSIONS: "true"
+    volumes: ["waha-sessions:/app/.sessions"]
+    extra_hosts: ["host.docker.internal:host-gateway"]
+
+volumes:
+  redis-data:
+  waha-sessions:

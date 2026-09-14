@@ -1,0 +1,168 @@
+<title>The Alternatives</title>
+<!-- Shared head + style block. Copied verbatim into every page (artifacts must be self-contained). -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{--bg:#F2F5F4;--surface:#FFF;--surface-2:#E9EEEC;--line:#D2DCD9;--line-soft:#E2E9E7;--ink:#16211F;--ink-2:#3D4F4C;--muted:#647774;--accent:#0E6E63;--accent-2:#0A544B;--accent-wash:#E2F0ED;--brass:#A2691C;--brass-wash:#F7EDDF;--danger:#A03A31;--danger-wash:#F8E7E4;--measure:68ch;--radius:3px}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0D1413;--surface:#141F1D;--surface-2:#1B2725;--line:#2C3B38;--line-soft:#223230;--ink:#E6EDEB;--ink-2:#B7C6C3;--muted:#8B9D9A;--accent:#4FB5A6;--accent-2:#7FCFC2;--accent-wash:#122E2A;--brass:#D4A45E;--brass-wash:#2B2214;--danger:#E08A80;--danger-wash:#2E1A17}}
+:root[data-theme="dark"]{--bg:#0D1413;--surface:#141F1D;--surface-2:#1B2725;--line:#2C3B38;--line-soft:#223230;--ink:#E6EDEB;--ink-2:#B7C6C3;--muted:#8B9D9A;--accent:#4FB5A6;--accent-2:#7FCFC2;--accent-wash:#122E2A;--brass:#D4A45E;--brass-wash:#2B2214;--danger:#E08A80;--danger-wash:#2E1A17}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:"Public Sans",ui-sans-serif,system-ui,sans-serif;font-size:17px;line-height:1.65;margin:0;padding:0 20px 90px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:920px;margin:0 auto}
+h1,h2,h3{font-family:Spectral,ui-serif,Georgia,serif;text-wrap:balance;color:var(--ink);margin:0}
+h1{font-size:clamp(2rem,5vw,2.9rem);font-weight:700;line-height:1.1;letter-spacing:-.015em}
+h2{font-size:clamp(1.45rem,3vw,1.8rem);font-weight:600;line-height:1.22;letter-spacing:-.01em}
+h3{font-size:1.14rem;font-weight:600;line-height:1.3}
+p{margin:0;max-width:var(--measure)}
+.full p{max-width:none}
+a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:2px}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+strong{font-weight:600;color:var(--ink)}
+code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.88em;background:var(--surface-2);border:1px solid var(--line-soft);border-radius:2px;padding:.5px 5px;color:var(--ink-2)}
+.eyebrow{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.7rem;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.lede{font-family:Spectral,ui-serif,Georgia,serif;font-size:clamp(1.1rem,2vw,1.3rem);line-height:1.55;color:var(--ink-2);max-width:60ch}
+.stack-s{display:flex;flex-direction:column;gap:10px}
+section{display:flex;flex-direction:column;gap:18px}
+.sections{display:flex;flex-direction:column;gap:56px}
+header.masthead{display:flex;flex-direction:column;gap:20px;padding:34px 0 30px;border-bottom:2px solid var(--ink);margin-bottom:40px}
+.meta-row{display:flex;flex-wrap:wrap;gap:8px 24px;font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.73rem;color:var(--muted);letter-spacing:.03em}
+nav.pagenav{display:flex;flex-wrap:wrap;gap:6px;padding:22px 0 0}
+nav.pagenav a,nav.pagenav span{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.71rem;letter-spacing:.04em;padding:4px 9px;border:1px solid var(--line);border-radius:2px;background:var(--surface);color:var(--muted);text-decoration:none;white-space:nowrap}
+nav.pagenav a:hover{border-color:var(--accent);color:var(--accent)}
+nav.pagenav span.here{background:var(--accent-wash);border-color:var(--accent);color:var(--accent-2);font-weight:600}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:22px 24px;display:flex;flex-direction:column;gap:10px}
+.grid-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,265px),1fr));gap:16px}
+.grid-3{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:16px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;display:flex;flex-direction:column;gap:5px}
+.stat .num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:1.7rem;font-weight:600;line-height:1.05;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--ink)}
+.stat .cap{font-size:.86rem;color:var(--muted);line-height:1.4}
+.callout{border-radius:var(--radius);padding:20px 24px;display:flex;flex-direction:column;gap:10px;border:1px solid}
+.callout p{max-width:62ch}
+.callout.warn{background:var(--brass-wash);border-color:var(--brass)}
+.callout.risk{background:var(--danger-wash);border-color:var(--danger)}
+.callout.note{background:var(--accent-wash);border-color:var(--accent)}
+.callout .tag{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.7rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase}
+.callout.warn .tag{color:var(--brass)}.callout.risk .tag{color:var(--danger)}.callout.note .tag{color:var(--accent-2)}
+.verdict{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:var(--radius);padding:28px 30px;display:flex;flex-direction:column;gap:14px}
+.verdict h2{color:var(--accent-2)}
+.table-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:440px;font-size:.92rem}
+th,td{text-align:left;padding:11px 16px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+thead th{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.67rem;font-weight:600;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);background:var(--surface-2);border-bottom:1px solid var(--line);white-space:nowrap}
+tbody tr:last-child td{border-bottom:none}
+td.num,th.num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.highlight td{background:var(--accent-wash);font-weight:500}
+caption{caption-side:bottom;text-align:left;padding:10px 16px;font-size:.81rem;color:var(--muted);line-height:1.5}
+ul.clean{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:9px;max-width:var(--measure)}
+ul.clean>li{position:relative;padding-left:20px}
+ul.clean>li::before{content:"";position:absolute;left:3px;top:.66em;width:6px;height:1px;background:var(--accent)}
+ol.checks{margin:0;padding-left:1.25em;display:flex;flex-direction:column;gap:9px;max-width:var(--measure)}
+ol.checks li::marker{font-family:"IBM Plex Mono",ui-monospace,monospace;color:var(--accent);font-size:.85em}
+.kicker{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.72rem;letter-spacing:.05em;color:var(--muted);background:var(--surface-2);border:1px solid var(--line-soft);border-radius:2px;padding:1px 7px;white-space:nowrap}
+footer.colophon{margin-top:70px;padding-top:26px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:12px;font-size:.87rem;color:var(--muted)}
+footer.colophon a{color:var(--muted)}
+.phases{display:flex;flex-direction:column;gap:2px}
+.phase{display:grid;grid-template-columns:58px minmax(0,1fr);gap:0 20px;background:var(--surface);border:1px solid var(--line);padding:22px 24px;align-items:start}
+.phase:first-child{border-radius:var(--radius) var(--radius) 0 0}
+.phase:last-child{border-radius:0 0 var(--radius) var(--radius)}
+.phase+.phase{border-top:none}
+.phase .n{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:1.5rem;font-weight:600;color:var(--accent);line-height:1;font-variant-numeric:tabular-nums;padding-top:2px}
+.phase .body{display:flex;flex-direction:column;gap:8px}
+.phase .when{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.71rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+@media (max-width:560px){body{font-size:16px;padding:0 16px 70px}.verdict{padding:22px 20px}.phase{grid-template-columns:38px minmax(0,1fr);gap:0 14px;padding:20px 18px}.phase .n{font-size:1.2rem}}
+</style>
+
+<div class="wrap">
+<header class="masthead">
+  <div class="stack-s">
+    <span class="eyebrow">Part 8 of 8 · Market</span>
+    <h1>The alternatives</h1>
+  </div>
+  <p class="lede">Who else does this, where DM Champ genuinely differs, and the two options worth taking seriously — one commercial, one open source.</p>
+  <nav class="pagenav"><a href="https://claude.ai/code/artifact/f5bd2760-dfce-4871-8be3-60018cdc0112">1 - Verdict</a><a href="https://claude.ai/code/artifact/6bd1af07-636a-4ac0-b8a7-1d97564dd414">2 - Product</a><a href="https://claude.ai/code/artifact/a03c5511-8bd0-49a7-9afe-dfefffd029fc">3 - Pricing</a><a href="https://claude.ai/code/artifact/94633e09-dda4-4ca6-944a-11ca39bda24a">4 - Our Account</a><a href="https://claude.ai/code/artifact/53d88db1-13bd-4a52-9fd7-6d17e2af3bc3">5 - Reseller</a><a href="https://claude.ai/code/artifact/6d68e98c-e212-44fe-a604-74d8e2e6ce53">6 - Build vs Buy</a><a href="https://claude.ai/code/artifact/bea617de-71fe-4c14-8d1f-4ce922ed8e15">7 - AI Costs</a><span class="here">8 - Alternatives</span><a href="https://claude.ai/code/artifact/4d8015de-7ba6-431f-8b5d-7f8955033e5c">9 - Demo Guide</a></nav>
+</header>
+
+<div class="sections">
+
+<section>
+  <div class="stack-s"><span class="eyebrow">The landscape</span><h2>Who's in this market</h2></div>
+  <div class="table-scroll full">
+    <table>
+      <thead><tr><th>Platform</th><th class="num">Entry</th><th class="num">Agency tier</th><th>True white-label?</th></tr></thead>
+      <tbody>
+        <tr class="highlight"><td><strong>DM Champ</strong></td><td class="num">$97/mo</td><td class="num">$297 / $497</td><td><strong>Yes</strong> — domain, logo, colours, app name, emails, SEO</td></tr>
+        <tr><td>GoHighLevel</td><td class="num">$97/mo</td><td class="num">$497</td><td><strong>Yes</strong> — SaaS Mode, custom domain, branded mobile app</td></tr>
+        <tr><td>ConvoCore</td><td class="num">$99/mo</td><td class="num">$220</td><td>Yes, with per-client add-on fees</td></tr>
+        <tr><td>Botpress</td><td class="num">Free</td><td class="num">$495 / $2,999</td><td>Partial — webchat only</td></tr>
+        <tr><td>Respond.io</td><td class="num">$79/mo</td><td class="num">$279</td><td>No</td></tr>
+        <tr><td>Wati</td><td class="num">$59/mo</td><td class="num">$279</td><td>No</td></tr>
+        <tr><td>ManyChat</td><td class="num">$14–39/mo</td><td class="num">$69</td><td>No</td></tr>
+        <tr><td>Landbot</td><td class="num">€40/mo</td><td class="num">€400</td><td>Limited</td></tr>
+        <tr><td>Tidio</td><td class="num">$29/mo</td><td class="num">$749</td><td>No</td></tr>
+        <tr><td>Intercom Fin</td><td class="num">$0.99/outcome</td><td class="num">$99/seat</td><td>No</td></tr>
+        <tr><td><strong>Chatwoot</strong> (open source)</td><td class="num">Free self-hosted</td><td class="num">—</td><td>Self-hosted, so fully yours</td></tr>
+      </tbody>
+      <caption>Most of this table comes from DM Champ's own comparison page, which explicitly discloses it is the author's product. Treat competitor limitations as directional and verify anything decision-critical.</caption>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="stack-s"><span class="eyebrow">Differentiation</span><h2>What DM Champ genuinely does better</h2></div>
+  <p>Cross-checked against independent sources, three things hold up:</p>
+  <ol class="checks">
+    <li><strong>True white-label at a low price point.</strong> ManyChat, Respond.io, Wati and Tidio simply cannot be resold under our brand — clients see their branding, and billing is a problem you solve outside the tool. This is the clearest differentiator, and the reason foundergrowth.ai looks like our boss's own product.</li>
+    <li><strong>URL-to-agent setup in about 15 minutes.</strong> Consistently praised in verified reviews, explicitly contrasted with prompt-engineering-heavy competitors.</li>
+    <li><strong>The conversation feels human</strong> — not because of a better model, but because of reply delays, message splitting and simulated typing. Reviewers repeatedly report leads not realising they're talking to a bot.</li>
+  </ol>
+</section>
+
+<section>
+  <div class="stack-s"><span class="eyebrow">Option A</span><h2>GoHighLevel — the serious commercial rival</h2></div>
+  <p>The only other platform here with real SaaS-mode white-label at a comparable price ($497/mo Pro), plus a branded mobile app. It's a far bigger, better-capitalised company — <strong>much lower platform risk than a three-person startup.</strong></p>
+  <p><strong>But</strong> GHL is a CRM and marketing-automation suite with messaging bolted on, not an AI-DM-sales product. Its conversational AI is weaker and its DM/Instagram story is thinner. It's also a heavier, more complex product to learn and to teach clients.</p>
+  <div class="callout note">
+    <span class="tag">Verdict</span>
+    <p>Worth a serious look <strong>if platform risk is the deciding concern</strong>, or if we want CRM, funnels and email as part of the same offer. Not worth switching to purely for the AI agent.</p>
+  </div>
+</section>
+
+<section>
+  <div class="stack-s"><span class="eyebrow">Option B</span><h2>Chatwoot — the open-source foundation</h2></div>
+  <p>Genuinely relevant to the build question. Chatwoot is an <strong>open-source omnichannel inbox</strong> — live chat, email, WhatsApp, Facebook, Instagram, Telegram, LINE — with automations, contact profiles, team collaboration and a built-in AI agent called Captain. Self-hosting is free with no per-agent fees; cloud starts at $19/agent/month.</p>
+  <p><strong>Why it matters:</strong> it eliminates roughly the whole of build-system 2 and much of system 4 in part 6. We would not be writing WhatsApp/Instagram/Telegram webhook plumbing or an inbox UI from scratch.</p>
+  <p><strong>What it doesn't give us:</strong></p>
+  <ul class="clean">
+    <li>The multi-tenant <strong>white-label reseller layer</strong> — per-tenant branding, custom domains with auto-SSL, a credit ledger with per-client markup, Stripe billing. That's the bulk of the remaining work.</li>
+    <li>The <strong>Meta App Review / Advanced Access</strong> approval — still entirely on us.</li>
+    <li>The <strong>URL-to-agent onboarding</strong> and the conversational realism tuning.</li>
+  </ul>
+  <div class="callout note">
+    <span class="tag">Verdict</span>
+    <p>If we ever do build, <strong>start from Chatwoot, don't start from zero</strong> — it could plausibly halve the timeline. But it doesn't change the recommendation: the expensive, risky parts (Meta approval, the white-label billing layer) are exactly what Chatwoot doesn't cover.</p>
+  </div>
+  <p>Other open-source options in the same space, lighter and less relevant: Zammad (ticket-first), FreeScout (shared inbox), Tiledesk (chat plus bots), Rocket.Chat.</p>
+</section>
+
+<section>
+  <div class="stack-s"><span class="eyebrow">A useful aside</span><h2>How they actually acquire customers</h2></div>
+  <p>DM Champ publishes an extensive SEO library — "10 Best ManyChat Alternatives", "12 Best WhatsApp AI Chatbots", "10 Best White-Label AI Sales Agents for Agencies" and dozens more — all of which conclude that DM Champ is the best option.</p>
+  <p>That's itself a finding. Their distribution is: comparison-page SEO, a free playbook and template library, a Skool community, AppSumo for a launch spike, and the founder's personal LinkedIn and YouTube presence — he also sells a "0 to $100K SaaS" course documenting how he built it. Distribution-first, product-second, which is his own stated methodology.</p>
+  <div class="callout note">
+    <span class="tag">Worth borrowing</span>
+    <p>If we do resell, <strong>that content strategy is more copyable than the software</strong> — and considerably cheaper than a two-year build.</p>
+  </div>
+</section>
+
+<section>
+  <div class="stack-s"><span class="eyebrow">Sources</span><h2>Where this came from</h2></div>
+  <p class="full"><strong>DM Champ's own:</strong> <a href="https://dmchamp.com/">dmchamp.com</a> · <a href="https://dmchamp.com/pricing/">pricing</a> · <a href="https://dmchamp.com/features/">features</a> · <a href="https://dmchamp.com/for-agencies/">for agencies</a> · <a href="https://help.dmchamp.com/">help centre</a> · <a href="https://www.youtube.com/@dmchamp">YouTube</a></p>
+  <p class="full"><strong>Independent:</strong> <a href="https://appsumo.com/products/dm-champ/reviews/">AppSumo verified reviews</a> · <a href="https://getlatka.com/companies/dmchamp.com">Latka revenue data</a> · <a href="https://lifetimedealtech.com/dm-champ-lifetime-deal-review-2026/">LifetimeDealTech</a> · <a href="https://katta.co/dm-champ-review/">KATTA.CO</a> · <a href="https://www.linkedin.com/in/thesohaibahmad/">Sohaib Ahmad on LinkedIn</a></p>
+  <p class="full"><strong>Meta &amp; infrastructure:</strong> <a href="https://developers.facebook.com/documentation/business-messaging/whatsapp/solution-providers/app-review">WhatsApp App Review docs</a> · <a href="https://developers.facebook.com/docs/instagram-platform/overview/">Instagram Platform overview</a> · <a href="https://blueticks.co/blog/whatsapp-business-api-pricing-2026">WhatsApp API pricing 2026</a></p>
+  <p class="full"><strong>Alternatives:</strong> <a href="https://www.chatwoot.com/">Chatwoot</a> · <a href="https://openalternative.co/chatwoot">openalternative.co/chatwoot</a></p>
+  <p class="full"><strong>Part 4</strong> was read first-hand from the live FounderGrowth.AI account on 24 August 2026 and cites no external source.</p>
+</section>
+
+</div>
+</div>

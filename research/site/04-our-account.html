@@ -1,0 +1,236 @@
+<title>Inside FounderGrowth.AI</title>
+<!-- Shared head + style block. Copied verbatim into every page (artifacts must be self-contained). -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{--bg:#F2F5F4;--surface:#FFF;--surface-2:#E9EEEC;--line:#D2DCD9;--line-soft:#E2E9E7;--ink:#16211F;--ink-2:#3D4F4C;--muted:#647774;--accent:#0E6E63;--accent-2:#0A544B;--accent-wash:#E2F0ED;--brass:#A2691C;--brass-wash:#F7EDDF;--danger:#A03A31;--danger-wash:#F8E7E4;--measure:68ch;--radius:3px}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0D1413;--surface:#141F1D;--surface-2:#1B2725;--line:#2C3B38;--line-soft:#223230;--ink:#E6EDEB;--ink-2:#B7C6C3;--muted:#8B9D9A;--accent:#4FB5A6;--accent-2:#7FCFC2;--accent-wash:#122E2A;--brass:#D4A45E;--brass-wash:#2B2214;--danger:#E08A80;--danger-wash:#2E1A17}}
+:root[data-theme="dark"]{--bg:#0D1413;--surface:#141F1D;--surface-2:#1B2725;--line:#2C3B38;--line-soft:#223230;--ink:#E6EDEB;--ink-2:#B7C6C3;--muted:#8B9D9A;--accent:#4FB5A6;--accent-2:#7FCFC2;--accent-wash:#122E2A;--brass:#D4A45E;--brass-wash:#2B2214;--danger:#E08A80;--danger-wash:#2E1A17}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:"Public Sans",ui-sans-serif,system-ui,sans-serif;font-size:17px;line-height:1.65;margin:0;padding:0 20px 90px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:920px;margin:0 auto}
+h1,h2,h3{font-family:Spectral,ui-serif,Georgia,serif;text-wrap:balance;color:var(--ink);margin:0}
+h1{font-size:clamp(2rem,5vw,2.9rem);font-weight:700;line-height:1.1;letter-spacing:-.015em}
+h2{font-size:clamp(1.45rem,3vw,1.8rem);font-weight:600;line-height:1.22;letter-spacing:-.01em}
+h3{font-size:1.14rem;font-weight:600;line-height:1.3}
+p{margin:0;max-width:var(--measure)}
+.full p{max-width:none}
+a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:2px}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+strong{font-weight:600;color:var(--ink)}
+code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.88em;background:var(--surface-2);border:1px solid var(--line-soft);border-radius:2px;padding:.5px 5px;color:var(--ink-2)}
+.eyebrow{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.7rem;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.lede{font-family:Spectral,ui-serif,Georgia,serif;font-size:clamp(1.1rem,2vw,1.3rem);line-height:1.55;color:var(--ink-2);max-width:60ch}
+.stack-s{display:flex;flex-direction:column;gap:10px}
+section{display:flex;flex-direction:column;gap:18px}
+.sections{display:flex;flex-direction:column;gap:56px}
+header.masthead{display:flex;flex-direction:column;gap:20px;padding:34px 0 30px;border-bottom:2px solid var(--ink);margin-bottom:40px}
+.meta-row{display:flex;flex-wrap:wrap;gap:8px 24px;font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.73rem;color:var(--muted);letter-spacing:.03em}
+nav.pagenav{display:flex;flex-wrap:wrap;gap:6px;padding:22px 0 0}
+nav.pagenav a,nav.pagenav span{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.71rem;letter-spacing:.04em;padding:4px 9px;border:1px solid var(--line);border-radius:2px;background:var(--surface);color:var(--muted);text-decoration:none;white-space:nowrap}
+nav.pagenav a:hover{border-color:var(--accent);color:var(--accent)}
+nav.pagenav span.here{background:var(--accent-wash);border-color:var(--accent);color:var(--accent-2);font-weight:600}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:22px 24px;display:flex;flex-direction:column;gap:10px}
+.grid-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,265px),1fr));gap:16px}
+.grid-3{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:16px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;display:flex;flex-direction:column;gap:5px}
+.stat .num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:1.7rem;font-weight:600;line-height:1.05;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--ink)}
+.stat .cap{font-size:.86rem;color:var(--muted);line-height:1.4}
+.callout{border-radius:var(--radius);padding:20px 24px;display:flex;flex-direction:column;gap:10px;border:1px solid}
+.callout p{max-width:62ch}
+.callout.warn{background:var(--brass-wash);border-color:var(--brass)}
+.callout.risk{background:var(--danger-wash);border-color:var(--danger)}
+.callout.note{background:var(--accent-wash);border-color:var(--accent)}
+.callout .tag{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.7rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase}
+.callout.warn .tag{color:var(--brass)}.callout.risk .tag{color:var(--danger)}.callout.note .tag{color:var(--accent-2)}
+.verdict{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:var(--radius);padding:28px 30px;display:flex;flex-direction:column;gap:14px}
+.verdict h2{color:var(--accent-2)}
+.table-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:440px;font-size:.92rem}
+th,td{text-align:left;padding:11px 16px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+thead th{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.67rem;font-weight:600;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);background:var(--surface-2);border-bottom:1px solid var(--line);white-space:nowrap}
+tbody tr:last-child td{border-bottom:none}
+td.num,th.num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.highlight td{background:var(--accent-wash);font-weight:500}
+caption{caption-side:bottom;text-align:left;padding:10px 16px;font-size:.81rem;color:var(--muted);line-height:1.5}
+ul.clean{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:9px;max-width:var(--measure)}
+ul.clean>li{position:relative;padding-left:20px}
+ul.clean>li::before{content:"";position:absolute;left:3px;top:.66em;width:6px;height:1px;background:var(--accent)}
+ol.checks{margin:0;padding-left:1.25em;display:flex;flex-direction:column;gap:9px;max-width:var(--measure)}
+ol.checks li::marker{font-family:"IBM Plex Mono",ui-monospace,monospace;color:var(--accent);font-size:.85em}
+.kicker{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.72rem;letter-spacing:.05em;color:var(--muted);background:var(--surface-2);border:1px solid var(--line-soft);border-radius:2px;padding:1px 7px;white-space:nowrap}
+footer.colophon{margin-top:70px;padding-top:26px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:12px;font-size:.87rem;color:var(--muted)}
+footer.colophon a{color:var(--muted)}
+.phases{display:flex;flex-direction:column;gap:2px}
+.phase{display:grid;grid-template-columns:58px minmax(0,1fr);gap:0 20px;background:var(--surface);border:1px solid var(--line);padding:22px 24px;align-items:start}
+.phase:first-child{border-radius:var(--radius) var(--radius) 0 0}
+.phase:last-child{border-radius:0 0 var(--radius) var(--radius)}
+.phase+.phase{border-top:none}
+.phase .n{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:1.5rem;font-weight:600;color:var(--accent);line-height:1;font-variant-numeric:tabular-nums;padding-top:2px}
+.phase .body{display:flex;flex-direction:column;gap:8px}
+.phase .when{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.71rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+@media (max-width:560px){body{font-size:16px;padding:0 16px 70px}.verdict{padding:22px 20px}.phase{grid-template-columns:38px minmax(0,1fr);gap:0 14px;padding:20px 18px}.phase .n{font-size:1.2rem}}
+</style>
+
+<div class="wrap">
+<header class="masthead">
+  <div class="stack-s">
+    <span class="eyebrow">Part 4 of 8 · Verified first-hand</span>
+    <h1>Inside FounderGrowth.AI</h1>
+  </div>
+  <p class="lede">Everything on this page was read directly from the live account on 24 August 2026 — the billing ledger, the dashboard, the agent configuration and the channel status. It contradicts the marketing in two important places.</p>
+  <nav class="pagenav"><a href="index.html">1 - Verdict</a><a href="02-product.html">2 - Product</a><a href="03-pricing.html">3 - Pricing</a><span class="here">4 - Our Account</span><a href="05-reseller.html">5 - Reseller</a><a href="06-build-vs-buy.html">6 - Build vs Buy</a><a href="07-ai-costs.html">7 - AI Costs</a><a href="08-alternatives.html">8 - Alternatives</a><a href="09-demo-guide.html">9 - Demo Guide</a></nav>
+</header>
+
+<div class="sections">
+
+<section>
+  <div class="stack-s"><span class="eyebrow">The headline correction</span><h2>It costs about twice the advertised rate</h2></div>
+  <p>The published rule is "one AI response, one credit charge." The actual ledger tells a different story: <strong>every AI action is billed separately</strong> — not just the reply the customer sees. One real conversation on 15 August produced <strong>eight charges for four visible replies</strong>.</p>
+
+  <div class="table-scroll full">
+    <table>
+      <thead><tr><th class="num">Time</th><th>What was charged</th><th class="num">Credits</th></tr></thead>
+      <tbody>
+        <tr><td class="num">2:48:06 PM</td><td>AI Message</td><td class="num">0.25</td></tr>
+        <tr><td class="num">2:48:20 PM</td><td>AI First Name Extraction</td><td class="num">0.25</td></tr>
+        <tr><td class="num">2:48:37 PM</td><td>AI Message</td><td class="num">0.25</td></tr>
+        <tr><td class="num">2:49:17 PM</td><td>AI Message</td><td class="num">0.25</td></tr>
+        <tr><td class="num">2:51:08 PM</td><td>AI Tool Use: alertHuman</td><td class="num">0.25</td></tr>
+        <tr><td class="num">2:53:14 PM</td><td>AI Email Extraction</td><td class="num">0.25</td></tr>
+        <tr><td class="num">2:53:21 PM</td><td>AI Tool Use: setContactEmail</td><td class="num">0.25</td></tr>
+        <tr><td class="num">2:53:34 PM</td><td>AI Message</td><td class="num">0.25</td></tr>
+        <tr class="highlight"><td class="num">—</td><td><strong>Four replies the customer saw</strong></td><td class="num"><strong>2.00</strong></td></tr>
+      </tbody>
+      <caption>Extractions and tool calls bill at the same rate as replies. Effective cost: ~0.5 credits per visible reply against an advertised 0.25.</caption>
+    </table>
+  </div>
+
+  <h3>Three costs the marketing never mentions</h3>
+  <div class="table-scroll full">
+    <table>
+      <thead><tr><th>Charge</th><th class="num">Rate</th><th>Why it matters</th></tr></thead>
+      <tbody>
+        <tr><td><strong>KB Source: URL</strong> — knowledge-base ingestion</td><td class="num">1 credit per page</td><td>15 pages of the client's site were ingested — <strong>15 credits ($1.50) just to train one bot</strong>. A 200-page client site would cost $20 before a single conversation.</td></tr>
+        <tr><td><strong>Daily Summary Generation</strong></td><td class="num">0.25/day</td><td>Fires <strong>every day regardless of activity</strong> — about 7.5 credits/month of passive burn per workspace.</td></tr>
+        <tr><td><strong>Follow-up Cycle</strong></td><td class="num">0.25 each</td><td>Automated follow-ups are billed like replies. Six fired in the window.</td></tr>
+        <tr><td>Campaign Generation from Sales Page</td><td class="num">1 credit</td><td>Per generation.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid-3">
+    <div class="stat"><span class="num">71.75</span><span class="cap">Credits used in 30 days</span></div>
+    <div class="stat"><span class="num">95</span><span class="cap">Separately billed records</span></div>
+    <div class="stat"><span class="num">18.06</span><span class="cap">Credits per chat, per the dashboard — about $1.81 a conversation</span></div>
+  </div>
+
+  <p><strong>Read the 18.06 carefully.</strong> It's inflated by fixed overhead — knowledge-base ingestion and daily summaries — spread across only three or four real chats. The defensible planning figure from the conversational lines alone is <strong>roughly 0.5–0.6 credits per AI reply, about double the headline</strong>, plus ~1 credit per knowledge-base page at setup, plus ~7.5 credits/month passive per workspace.</p>
+  <p>Practically: budget about <strong>$27.50 per client per month</strong> at 500 replies, not the ~$12.50 the advertised rate implies. The account's own warning reads: <em>"≈ 2 more chats on your balance."</em></p>
+</section>
+
+<section>
+  <div class="stack-s"><span class="eyebrow">The second correction</span><h2>The cheap option isn't available to us</h2></div>
+  <p>Bring-your-own-key only zeroes credits on the <strong>Pro</strong> tier. Max and Mini run on DM Champ's own infrastructure, so your key changes nothing there.</p>
+  <div class="table-scroll full">
+    <table>
+      <thead><tr><th>Tier</th><th class="num">Credits per action</th><th>With our own Anthropic key</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Pro</strong> (Claude Sonnet)</td><td class="num">1.00</td><td><strong>0 credits</strong> — we'd pay Anthropic ~$0.005/call directly</td></tr>
+        <tr class="highlight"><td><strong>Max</strong> — what we're running</td><td class="num">0.25</td><td>Still 0.25 — key is irrelevant</td></tr>
+        <tr><td><strong>Mini</strong></td><td class="num">0.15</td><td>Still 0.15</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>So the counter-intuitive right answer is to run the <em>most expensive-looking</em> tier: Pro at 1 credit becomes 0 credits with our own key, at roughly <strong>five times cheaper than Max</strong>.</p>
+  <div class="callout risk">
+    <span class="tag">But we can't do it today</span>
+    <p>The agent editor's <strong>AI quality</strong> panel offers exactly three buttons — Pro ("Old reliable — 1 credit per action"), Max ("Recommended… 0.25 credits per action"), Mini — and <strong>no API-key field anywhere</strong>. Settings has no BYOK section either.</p>
+    <p>That option requires an Agency-tier plan. Until the account question below is settled, <strong>our real cost floor is Max at 0.25 credits per billed action.</strong></p>
+  </div>
+</section>
+
+<section>
+  <div class="stack-s"><span class="eyebrow">The question that blocks everything</span><h2>Are we the agency, or somebody's client?</h2></div>
+  <p>The billing page shows:</p>
+  <ul class="clean">
+    <li>Monthly AI credits: <strong>— (none)</strong></li>
+    <li>Purchased credits: <strong>100</strong></li>
+    <li>Card on file: <strong>No</strong></li>
+    <li>Subscription: Active</li>
+  </ul>
+  <p><strong>Plan features listed:</strong> unlimited messaging channels, unlimited contacts, contact tagging, 100K AI agent context, real-time web search, voice/image/video/document understanding, AI media library, tasks, webhooks, custom functions, advanced mode, reply to comments, automatic follow-ups, unlimited AI responses per chat, AI appointment booking, daily summaries, API access, <strong>3 team seats</strong>.</p>
+  <p><strong>Conspicuously absent</strong> — from both the feature list and the settings navigation: white-label or custom-domain settings, sub-accounts, any agency section, and AI model / BYOK controls. Settings contains only: Profile, Security &amp; General, Business, Team, Billing, Tags, Channels, Short Links, Booking &amp; Calendar, Webhooks, API Key, Notifications, Data Export.</p>
+  <p>The string <strong>"Sub Account"</strong> does appear in the settings page text.</p>
+  <div class="callout risk">
+    <span class="tag">Two readings, opposite conclusions</span>
+    <p><strong>1. This workspace is a sub-account inside someone else's agency.</strong> Someone sold the boss a white-labeled instance. If so, <strong>we cannot resell from this account</strong> — we are the client, not the agency, and the reseller economics don't apply to us yet.</p>
+    <p><strong>2. The boss holds an AppSumo lifetime deal</strong> — 3 team seats plus 100K context and no monthly credits fits an LTD tier — and configured white-label from a separate agency-level login, with this being his own working workspace.</p>
+    <p>This must be settled before any plan is built on it. It is now more important than anything about AI quality.</p>
+  </div>
+</section>
+
+<section>
+  <div class="stack-s"><span class="eyebrow">The live client</span><h2>There is real usage on this</h2></div>
+  <p>The account is not a toy. It's running <strong>Al Taher Chemicals</strong> (<code>altaherchemicals.com</code>), an electroplating and metal-finishing business, via an agent named <strong>"Tia | ATC"</strong>.</p>
+  <div class="grid-3">
+    <div class="stat"><span class="num">73%</span><span class="cap">Of outgoing messages handled by AI</span></div>
+    <div class="stat"><span class="num">0%</span><span class="cap">Rate on 14 replies — zero bookings</span></div>
+    <div class="stat"><span class="num">0</span><span class="cap">Conversations completed without a human</span></div>
+  </div>
+  <ul class="clean">
+    <li>One agent only — English, model tier <strong>MAX</strong>, active, created 12 days ago</li>
+    <li>15 pages of the client's site ingested into the knowledge base</li>
+    <li>14 replies, 4 new contacts, 37 messages sent in 30 days — 27 by AI, 10 by a human</li>
+    <li>3 conversations involved both AI and a human; <strong>none were AI-only</strong></li>
+    <li>Open tasks include two "Human Alert" items and "Email lead sheet pricing to user"</li>
+  </ul>
+  <div class="callout warn">
+    <span class="tag">A one-click fix worth trying</span>
+    <p>Response speed is set to <strong>"Fast"</strong>, not the default <strong>"Human Like"</strong>. The interface warns in-line: <em>"Faster response speeds reduce AI thinking time, which can lower reply quality. 'Human Like' is the most accurate."</em> That's a plausible contributor to the 0% rate, and it costs nothing to change.</p>
+  </div>
+  <p>On a sample of three conversations, zero autonomous closes isn't damning — but it does not yet demonstrate the autonomous close the marketing sells.</p>
+</section>
+
+<section>
+  <div class="stack-s"><span class="eyebrow">The gap in the evidence</span><h2>Only one channel is connected</h2></div>
+  <div class="table-scroll full">
+    <table>
+      <thead><tr><th>Channel</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr class="highlight"><td>Chat Widget</td><td><strong>CONNECTED</strong> — 14 in, 37 out, 27 AI, 3 contacts</td></tr>
+        <tr><td>WhatsApp Business</td><td>Not connected</td></tr>
+        <tr><td>WhatsApp Web</td><td>Not connected</td></tr>
+        <tr><td>SMS</td><td>Not connected</td></tr>
+        <tr><td>Instagram</td><td>Not connected</td></tr>
+        <tr><td>Messenger</td><td>Not connected</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p><strong>The entire Meta integration — the hard part, and the part reviewers complain about most — is completely untested on this account.</strong> Everything working today runs through a website chat widget: the easiest possible channel, and the only one that needs no Meta approval at all.</p>
+  <p>Any confidence that WhatsApp or Instagram will work smoothly is currently unfounded on our side.</p>
+</section>
+
+<section>
+  <div class="stack-s"><span class="eyebrow">Confirmed as advertised</span><h2>What held up</h2></div>
+  <ul class="clean">
+    <li><strong>White-label is genuinely complete.</strong> FounderGrowth.AI logo, colours and naming throughout the dashboard, settings and billing. No DM Champ string anywhere in the interface.</li>
+    <li><strong>"Unknown Unknown" contacts are real</strong> — the review complaint reproduces directly in the activity feed and chats list.</li>
+    <li><strong>Data Export exists</strong> as a settings section, which supports the platform-risk mitigation in part 6.</li>
+    <li>Custom functions, webhooks, MCP servers and API key are all present and available on this tier.</li>
+  </ul>
+</section>
+
+<section>
+  <div class="stack-s"><span class="eyebrow">Still open</span><h2>What isn't verified yet</h2></div>
+  <ol class="checks">
+    <li><strong>Whether an agency or account-switcher view exists anywhere</strong> — settles the sub-account question above.</li>
+    <li><strong>The quality of the real conversations</strong> in the inbox, read end to end on genuine enquiries.</li>
+    <li><strong>Whether Custom Functions can reach our own backend</strong> — decides whether "differentiate without building" is real.</li>
+    <li><strong>The onboarding flow</strong> and what setting up a new client actually involves start to finish.</li>
+  </ol>
+</section>
+
+</div>
+</div>
