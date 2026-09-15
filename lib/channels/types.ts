@@ -75,15 +75,15 @@ export interface ChannelAdapter {
   verify?(req: Request, connection: ChannelConnection): boolean | Promise<boolean>;
 }
 
-/** What a webhook hands to the queue. Deliberately ids only — the worker re-reads. */
-export interface InboundJob {
-  organizationId: string;
-  conversationId: string;
-  messageId: string;
-  channelConnectionId: string;
-}
-
-/** What an inline (queue-less) agent run gives back, for channels whose visitor is waiting. */
-export interface AgentRunResult {
-  replies?: string[];
-}
+/**
+ * InboundJob and AgentRunResult used to be declared here too, as stand-ins while
+ * the queue and agent tracks were being written in parallel. Both are now owned
+ * by the modules that define their behaviour — lib/queue.ts and lib/ai/agent.ts —
+ * and ./index re-exports InboundJob so `from "@/lib/channels"` still resolves it.
+ *
+ * Keeping the copies would have been worse than a compile error: the stub
+ * AgentRunResult declared `replies?: string[]` where the real one guarantees
+ * `replies: string[]`, so every caller was writing `?? []` against a value that
+ * is never absent, and a genuine drift between the two would have type-checked
+ * cleanly in both files while breaking at the seam.
+ */

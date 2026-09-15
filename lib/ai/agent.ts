@@ -1,6 +1,7 @@
 import type { ConversationState, Prisma } from "@prisma/client";
 import { prisma } from "../db";
 import { env } from "../env";
+import { retrieveFaqs as rankFaqs, type RetrievedFaq } from "../knowledge/retrieve";
 import {
   chat,
   estimateCostUsd,
@@ -154,75 +155,39 @@ export async function runToolLoop(opts: ToolLoopOptions): Promise<ToolLoopResult
 // Knowledge retrieval
 // ─────────────────────────────────────────────────────────────────────────────
 
-export interface RetrievedFaq {
-  id: string;
-  question: string;
-  answer: string;
-}
-
-function toFaqRows(value: unknown): RetrievedFaq[] {
-  if (!Array.isArray(value)) return [];
-  const rows: RetrievedFaq[] = [];
-  for (const item of value) {
-    if (!item || typeof item !== "object") continue;
-    const r = item as Record<string, unknown>;
-    if (typeof r.question === "string" && typeof r.answer === "string") {
-      rows.push({
-        id: typeof r.id === "string" ? r.id : "",
-        question: r.question,
-        answer: r.answer,
-      });
-    }
-  }
-  return rows;
-}
-
-async function attempt(fn: (...a: unknown[]) => unknown, args: unknown[]): Promise<unknown> {
-  try {
-    return await fn(...args);
-  } catch {
-    return null;
-  }
-}
-
 /**
  * Top FAQs for this turn.
  *
- * lib/knowledge/retrieve.ts (full-text ranking) landed on another track while
- * this was being written, so it is still reached lazily and behind a try/catch:
- * a knowledge module that is mid-edit, or throws on a query, must not take a
- * customer's reply down with it. The fallback is useCount ordering, which still
- * puts the answers that earn their place at the top.
+ * Ranking itself lives in lib/knowledge/retrieve.ts (Postgres full-text, with a
+ * word-overlap second pass). This wrapper only adds the house fallback: when the
+ * query matches nothing at all, the model still does better with the business's
+ * best answers in front of it than with an empty knowledge section.
  *
- * TODO: swap for a static import — the lazy form hides a typo until runtime.
+ * Was a dynamic import behind a catch-all while the knowledge track was being
+ * written in parallel; that also swallowed real query errors and erased the
+ * ranking fields, so it is a plain static call now.
  */
 async function retrieveFaqs(
   organizationId: string,
   query: string,
   take: number,
 ): Promise<RetrievedFaq[]> {
-  try {
-    const mod = (await import("../knowledge/retrieve")) as Record<string, unknown>;
-    const fn = mod.retrieveFaqs;
-    if (typeof fn === "function") {
-      const rows = toFaqRows(await attempt(fn as (...a: unknown[]) => unknown, [organizationId, query, take]));
-      // No rows is a legitimate answer — nothing in the knowledge base matched —
-      // but the model does better with the house's best answers than with none.
-      if (rows.length) return rows;
-    }
-  } catch {
-    // Module missing or broken; the fallback below is always serviceable.
-  }
+  const ranked = await rankFaqs(organizationId, query, take);
+  if (ranked.length) return ranked;
 
-  return prisma.faq.findMany({
+  const fallback = await prisma.faq.findMany({
     where: { organizationId },
     // Hand-written FAQs outrank generated ones (CLAUDE.md §7). The id tiebreak
     // keeps the order stable as useCount moves, so the cached prompt prefix
     // does not silently stop matching mid-conversation.
     orderBy: [{ isManual: "desc" }, { useCount: "desc" }, { id: "asc" }],
     take,
-    select: { id: true, question: true, answer: true },
+    select: { id: true, question: true, answer: true, sourceUrl: true, isManual: true },
   });
+
+  // score 0 = "not matched, offered as background" — keeps the row shape honest
+  // rather than inventing a relevance number nothing computed.
+  return fallback.map((f) => ({ ...f, score: 0 }));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

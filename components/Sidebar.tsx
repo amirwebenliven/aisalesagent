@@ -19,30 +19,25 @@ export default function Sidebar({
 }) {
   const path = usePathname();
 
+  // Only routes that exist. Broadcasts, Appointments, Tasks, Live Data and
+  // Automations were listed here before they were built, so every one of them
+  // 404'd — a dead link in a nav reads as a broken product, not a roadmap.
+  // Add each back the day its page lands.
   const groups: Group[] = [
     { items: [{ href: "/", label: "Dashboard" }] },
     {
       title: "Engage",
-      items: [
-        { href: "/chats", label: "Chats", badge: openChats || undefined },
-        { href: "/broadcasts", label: "Broadcasts" },
-        { href: "/appointments", label: "Appointments" },
-      ],
+      items: [{ href: "/chats", label: "Chats", badge: openChats || undefined }],
     },
     {
       title: "CRM",
-      items: [
-        { href: "/contacts", label: "Contacts" },
-        { href: "/tasks", label: "Tasks" },
-      ],
+      items: [{ href: "/contacts", label: "Contacts" }],
     },
     {
       title: "AI Studio",
       items: [
         { href: "/agents", label: "AI Agents" },
         { href: "/knowledge", label: "Knowledge Base" },
-        { href: "/data-sources", label: "Live Data" },
-        { href: "/automations", label: "Automations" },
       ],
     },
     {
@@ -92,7 +87,16 @@ export default function Sidebar({
           <div className="lab">Credits</div>
           <div className="val">{credits.toFixed(2)}</div>
         </div>
-        <div className="who">{userEmail}</div>
+        <div className="who" title={userEmail}>{userEmail}</div>
+        {/* A real form POST, not fetch(): logout is POST-only (a GET logout
+            fires from any <img src> on someone else's page), and a form submit
+            follows the redirect and reloads the layout so the new cookie is
+            read. A fetch would clear the cookie and leave the stale UI on screen. */}
+        <form action="/api/auth/logout" method="post">
+          <button type="submit" className="btn" style={{ width: "100%", justifyContent: "center" }}>
+            Sign out
+          </button>
+        </form>
       </div>
     </aside>
   );

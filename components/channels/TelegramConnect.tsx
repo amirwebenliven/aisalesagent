@@ -1,135 +1,66 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-
-type ConnectResponse = {
-  ok?: boolean;
-  connection?: { id: string; displayName: string; username: string; status: string };
-  webhookUrl?: string;
-  error?: string;
-};
+import TelegramGuide, { TelegramBotPanel, replyDelayOf, type GuideAgent } from "./TelegramGuide";
 
 /**
- * Paste the BotFather token, we validate it against Telegram, store it
- * encrypted and register the webhook.
+ * The Telegram card's own controls.
  *
- * The token goes to /api/channels/telegram/connect and is never held in state
- * after the request, never echoed back by the server, and never rendered again.
- * What comes back is the bot's username — the thing that proves it worked.
+ * Before connecting: the two ways in — Connect, and "How do I get a token?" for
+ * the customer who has never met BotFather. Both open the same dialog, because
+ * the answer to "how do I get a token" is the form you paste it into.
+ *
+ * After connecting: the bot's handle, its t.me link and the START warning stay
+ * on the card. They are needed tomorrow, not only in the thirty seconds after
+ * the token was accepted, and a link that exists only inside a dismissed modal
+ * is a link that gets hunted for in Telegram's own settings.
+ *
+ * The token itself never lives here — it goes straight to a Server Action and
+ * is never echoed back, logged, or rendered again.
  */
 export default function TelegramConnect({
   agents,
-  currentAgentId,
+  connected,
 }: {
-  agents: { id: string; name: string }[];
-  currentAgentId?: string | null;
+  agents: GuideAgent[];
+  connected?: { username: string; agentId: string | null; note: string | null } | null;
 }) {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [token, setToken] = useState("");
-  const [agentId, setAgentId] = useState(currentAgentId ?? agents[0]?.id ?? "");
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<ConnectResponse | null>(null);
 
-  async function connect() {
-    if (pending || !token.trim()) return;
-    setPending(true);
-    setError(null);
-
-    try {
-      const res = await fetch("/api/channels/telegram/connect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ botToken: token.trim(), agentId: agentId || undefined }),
-      });
-      const data = (await res.json().catch(() => null)) as ConnectResponse | null;
-
-      if (!res.ok || !data?.ok) {
-        // Telegram's own words — "Unauthorized" means the token, "bad webhook"
-        // means APP_URL. Collapsing them into one message hides which.
-        setError(data?.error ?? `Connect failed with ${res.status} ${res.statusText}.`);
-        return;
-      }
-
-      setToken("");
-      setDone(data);
-      router.refresh();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setPending(false);
-    }
-  }
-
-  if (done?.connection) {
-    return (
-      <div className="connected-note">
-        <span className="pill ok">
-          <span className="dot" />
-          connected
-        </span>
-        <span className="mono small">@{done.connection.username}</span>
-        <p className="small dim" style={{ marginTop: 6 }}>
-          Message the bot on Telegram to test it. Inbound messages appear in Chats.
-        </p>
-      </div>
-    );
-  }
-
-  if (!open) {
-    return (
-      <button type="button" className="btn" onClick={() => setOpen(true)}>
-        Connect
-      </button>
-    );
-  }
+  const assigned = connected?.agentId ? agents.find((a) => a.id === connected.agentId) : undefined;
 
   return (
-    <div className="connect-form">
-      <div className="field">
-        <label htmlFor="tg-token">Bot token</label>
-        <span className="hint">
-          From @BotFather: <span className="mono">/newbot</span>, then paste what it gives you. Stored
-          encrypted, never shown again.
-        </span>
-        <input
-          id="tg-token"
-          type="password"
-          value={token}
-          onChange={(e) => setToken(e.target.value)}
-          placeholder="123456789:AA…"
-          autoComplete="off"
-          spellCheck={false}
-          disabled={pending}
-        />
-      </div>
-
-      {agents.length > 0 && (
-        <div className="field">
-          <label htmlFor="tg-agent">Which agent answers</label>
-          <select id="tg-agent" value={agentId} onChange={(e) => setAgentId(e.target.value)} disabled={pending}>
-            {agents.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-            <option value="">No agent — hold for a human</option>
-          </select>
+    <>
+      {connected ? (
+        <>
+          <TelegramBotPanel
+            username={connected.username}
+            delay={connected.agentId ? replyDelayOf(assigned) : null}
+            note={connected.note}
+          />
+          <div className="card-actions">
+            <button type="button" className="btn ghost" onClick={() => setOpen(true)}>
+              Use a different token
+            </button>
+          </div>
+        </>
+      ) : (
+        <div className="card-actions" style={{ marginTop: 0 }}>
+          <button type="button" className="btn primary" onClick={() => setOpen(true)}>
+            Connect
+          </button>
+          <button type="button" className="btn ghost" onClick={() => setOpen(true)}>
+            How do I get a token?
+          </button>
         </div>
       )}
 
-      {error && <div className="notice err block">{error}</div>}
-
-      <div style={{ display: "flex", gap: 8 }}>
-        <button type="button" className="btn primary" onClick={() => void connect()} disabled={pending || !token.trim()}>
-          {pending ? "Talking to Telegram…" : "Connect"}
-        </button>
-        <button type="button" className="btn" onClick={() => setOpen(false)} disabled={pending}>
-          Cancel
-        </button>
-      </div>
-    </div>
+      <TelegramGuide
+        open={open}
+        onClose={() => setOpen(false)}
+        agents={agents}
+        currentAgentId={connected?.agentId ?? null}
+      />
+    </>
   );
 }

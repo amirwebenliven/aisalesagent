@@ -154,36 +154,65 @@ export async function connectTelegram(params: {
   const webhookUrl = telegramWebhookUrl(connection.webhookSecret);
 
   try {
-    await tgCall(botToken, "setWebhook", {
-      url: webhookUrl,
-      secret_token: secretToken,
-      // Anything not listed here never reaches us, which is most of the volume.
-      allowed_updates: ["message", "edited_message"],
-      // Whatever piled up while the bot was unconnected is stale by definition;
-      // replaying it would answer questions asked days ago.
-      drop_pending_updates: true,
-      max_connections: 40,
-    });
+    if (usesWebhook()) {
+      await tgCall(botToken, "setWebhook", {
+        url: webhookUrl,
+        secret_token: secretToken,
+        // Anything not listed here never reaches us, which is most of the volume.
+        allowed_updates: ["message", "edited_message"],
+        // Whatever piled up while the bot was unconnected is stale by definition;
+        // replaying it would answer questions asked days ago.
+        drop_pending_updates: true,
+        max_connections: 40,
+      });
+    } else {
+      // Local development. Telegram only pushes to a public https URL, so on
+      // http://localhost there is nothing it can call — setWebhook fails with
+      // "HTTPS url must be provided" and the channel is dead on arrival.
+      //
+      // Long polling is the documented alternative and needs no tunnel, no
+      // account and no inbound port: `bun worker/telegram-poll.ts` pulls
+      // updates and feeds them through the SAME persist/dispatch path the
+      // webhook uses, so nothing about the agent changes between dev and prod.
+      //
+      // deleteWebhook is REQUIRED first: with a webhook registered Telegram
+      // answers getUpdates with 409 Conflict and polling silently receives
+      // nothing.
+      await tgCall(botToken, "deleteWebhook", { drop_pending_updates: true });
+    }
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     await prisma.channelConnection.update({
       where: { id: connection.id },
       data: { status: "FAILED", lastErrorAt: new Date(), lastErrorMessage: message },
     });
-    // Telegram refuses http:// and any host it cannot reach, so this is the
-    // error every developer hits first.
-    const hint = /^https:\/\//.test(env.APP_URL)
-      ? ""
-      : ` — APP_URL is "${env.APP_URL}"; Telegram requires a public https URL (use a cloudflared/ngrok tunnel in dev).`;
-    throw new Error(`${message}${hint}`);
+    throw new Error(message);
   }
 
   const active = await prisma.channelConnection.update({
     where: { id: connection.id },
-    data: { status: "ACTIVE" },
+    data: {
+      status: "ACTIVE",
+      lastErrorAt: null,
+      // Not an error — but the one thing someone testing locally needs to be
+      // told, and this is the field the Channels screen already renders.
+      lastErrorMessage: usesWebhook()
+        ? null
+        : "Polling mode — APP_URL is not https, so Telegram cannot push to us. " +
+          "The worker must be running to receive messages: `bun run worker`.",
+    },
   });
 
   return { connection: active, username, webhookUrl };
+}
+
+/**
+ * Whether Telegram can push to us. It refuses plain http and anything it cannot
+ * resolve, so on localhost we poll instead. APP_URL is the honest signal — it
+ * is the origin we actually serve from.
+ */
+export function usesWebhook(): boolean {
+  return /^https:\/\//.test(env.APP_URL);
 }
 
 /** Stop Telegram calling us — used when a channel is paused or deleted. */

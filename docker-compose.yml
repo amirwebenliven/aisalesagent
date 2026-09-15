@@ -9,10 +9,20 @@ services:
     command: redis-server --appendonly yes
 
   # WhatsApp QR bridge. Unofficial protocol — read CLAUDE.md §9 before shipping this.
+  #
+  # WAHA_API_KEY MUST be pinned. Left unset, WAHA generates a fresh key on every
+  # start and prints it to the container log — so every `docker compose restart`
+  # would silently invalidate the key the app holds, and WhatsApp would stop
+  # working with a 401 that looks like a code bug. Set it in .env.
   waha:
     image: devlikeapro/waha:latest
     ports: ["3001:3000"]
     environment:
+      WAHA_API_KEY: ${WAHA_API_KEY:?set WAHA_API_KEY in .env}
+      WAHA_DASHBOARD_USERNAME: ${WAHA_DASHBOARD_USERNAME:-admin}
+      WAHA_DASHBOARD_PASSWORD: ${WAHA_DASHBOARD_PASSWORD:?set WAHA_DASHBOARD_PASSWORD in .env}
+      WHATSAPP_SWAGGER_USERNAME: ${WAHA_DASHBOARD_USERNAME:-admin}
+      WHATSAPP_SWAGGER_PASSWORD: ${WAHA_DASHBOARD_PASSWORD}
       WHATSAPP_HOOK_URL: "http://host.docker.internal:3000/api/webhooks/whatsapp"
       WHATSAPP_HOOK_EVENTS: "message,session.status"
       WHATSAPP_RESTART_ALL_SESSIONS: "true"

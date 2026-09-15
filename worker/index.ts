@@ -17,6 +17,8 @@ import { prisma } from "../lib/db";
 import { runAgent } from "../lib/ai/agent";
 import { conversationKey, sendBubbles } from "../lib/channels";
 import { closeQueue, registerInboundProcessor, type InboundJob } from "../lib/queue";
+import { startTelegramPolling, stopTelegramPolling } from "./telegram-poll";
+import { usesWebhook } from "../lib/channels/telegram";
 
 const SWEEP_INTERVAL_MS = 30_000;
 const SWEEP_BATCH = 25;
@@ -210,6 +212,7 @@ async function shutdown(signal: string): Promise<void> {
   log(`[worker] ${signal} — shutting down`);
 
   if (sweepTimer) clearInterval(sweepTimer);
+  stopTelegramPolling();
   await closeQueue();
   await prisma.$disconnect();
   log("[worker] stopped");
@@ -229,6 +232,17 @@ async function main(): Promise<void> {
   sweepTimer = setInterval(() => {
     sweepScheduledJobs().catch((err) => console.error("[sweep] failed:", err));
   }, SWEEP_INTERVAL_MS);
+
+  // Telegram pushes to a public https URL or not at all, so on localhost we
+  // pull instead. Polling lives in THIS process because, with Redis down, the
+  // in-process queue can only run jobs enqueued by the process that registered
+  // the processor — polling from anywhere else would store messages nothing
+  // ever answers.
+  if (usesWebhook()) {
+    log("[worker] APP_URL is https — Telegram delivers by webhook, not polling.");
+  } else {
+    await startTelegramPolling();
+  }
 
   log(`[worker] scheduled-job sweep every ${SWEEP_INTERVAL_MS / 1000}s. Ready.`);
 }

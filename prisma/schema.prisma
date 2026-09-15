@@ -245,9 +245,12 @@ model Message {
   body           String    @db.Text
   mediaUrl       String?
 
-  // THE deduplication key. Every provider redelivers; without this, real
+  // THE deduplication key. Every provider redelivers; without it, real
   // customers get duplicate replies and we pay for each one. See CLAUDE.md §3.
-  providerId String? @unique
+  //
+  // Scoped to the conversation, NOT globally unique — see @@unique below. A
+  // global unique here was a silent cross-tenant data-loss bug.
+  providerId String?
 
   aiGenerated  Boolean  @default(false)
   sentByUserId String?
@@ -260,6 +263,24 @@ model Message {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
+  // Dedup is per CONVERSATION, never global.
+  //
+  // A provider's id space is only unique within its own connection, and often
+  // not even that. In a Telegram PRIVATE chat, chat.id IS the user's own
+  // Telegram id — the same value for every bot they talk to — and message_id
+  // restarts low in each chat. So one person messaging two of our customers'
+  // bots produces the identical `tg:<chatId>:<messageId>` for both. Under a
+  // global unique the second tenant's message hit P2002, persistInbound
+  // returned deduped, the webhook answered 200, and that customer's message was
+  // never stored, never queued and never answered — with no attacker involved,
+  // and no retry, because 200 tells Telegram we have it.
+  //
+  // conversationId already encodes the connection (`${channelConnectionId}:${ref}`),
+  // so this is the correct grain: a genuine redelivery of the same event on the
+  // same conversation still collides, which is exactly what dedup is for.
+  // NULLs never conflict in Postgres, so messages we send with no provider id
+  // are unaffected.
+  @@unique([conversationId, providerId])
   @@index([conversationId, createdAt])
   @@index([organizationId, createdAt])
 }

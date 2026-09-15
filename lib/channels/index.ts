@@ -1,16 +1,14 @@
 import type { ChannelConnection, ChannelKind } from "@prisma/client";
+import { runAgent } from "../ai/agent";
 import { prisma } from "../db";
+import { enqueueInbound, type InboundJob } from "../queue";
 import { telegramAdapter } from "./telegram";
 import { widgetAdapter } from "./widget";
-import type {
-  AgentRunResult,
-  ChannelAdapter,
-  ChannelId,
-  InboundJob,
-  InboundMessage,
-} from "./types";
+import type { ChannelAdapter, ChannelId, InboundMessage } from "./types";
 
 export * from "./types";
+/** Canonical home is lib/queue.ts; re-exported so `from "@/lib/channels"` keeps working. */
+export type { InboundJob } from "../queue";
 export { telegramAdapter, connectTelegram, disconnectTelegram, sendTyping } from "./telegram";
 export { widgetAdapter, widgetSettings, ensureWidgetConnection, widgetEmbedSnippet } from "./widget";
 
@@ -185,36 +183,6 @@ export async function persistInbound(
 // Dispatch — queue first, in-process second
 // ─────────────────────────────────────────────────────────────────────────────
 
-type QueueModule = { enqueueInbound?: (job: InboundJob) => Promise<unknown> };
-type AgentModule = { runAgent?: (job: InboundJob) => Promise<AgentRunResult | void> };
-
-/**
- * lib/queue.ts and lib/ai/agent.ts are landing alongside this file, so both are
- * loaded lazily and behind a try/catch: a missing module degrades to the next
- * option instead of taking the webhook down with it. Redis is also frequently
- * unreachable in development, which is the same failure from our side.
- *
- * TODO: once both modules are in, swap these for static imports — the lazy form
- * hides a genuine typo until runtime.
- */
-async function loadQueue(): Promise<QueueModule | null> {
-  try {
-    // @ts-ignore — written by a parallel track; may not exist yet.
-    return (await import("../queue")) as QueueModule;
-  } catch {
-    return null;
-  }
-}
-
-async function loadAgent(): Promise<AgentModule | null> {
-  try {
-    // @ts-ignore — written by a parallel track; may not exist yet.
-    return (await import("../ai/agent")) as AgentModule;
-  } catch {
-    return null;
-  }
-}
-
 export interface DispatchResult {
   /** "queued" | "inline" | "dropped" — how the turn was handled. */
   mode: "queued" | "inline" | "dropped";
@@ -233,35 +201,33 @@ export async function dispatchInbound(
   opts: { inline?: boolean; timeoutMs?: number } = {},
 ): Promise<DispatchResult> {
   if (!opts.inline) {
-    const queue = await loadQueue();
-    if (queue?.enqueueInbound) {
-      try {
-        await queue.enqueueInbound(job);
-        return { mode: "queued", replies: [] };
-      } catch (e) {
-        // Redis down. Falling through to an in-process run is slower and holds
-        // the request open, but it answers the customer — which beats silence.
-        console.warn(
-          `[channels] enqueue failed, running inline: ${e instanceof Error ? e.message : String(e)}`,
-        );
-      }
+    try {
+      // Resolves for BOTH a real Redis enqueue and the in-process fallback: each
+      // means something has taken the job and this request is free to return.
+      await enqueueInbound(job);
+      return { mode: "queued", replies: [] };
+    } catch (e) {
+      // Nothing accepted the job — Redis is down AND no worker is registered
+      // here. Running it inline is slower and holds the request open, but it
+      // answers the customer, which beats silence.
+      console.warn(
+        `[channels] enqueue failed, running inline: ${e instanceof Error ? e.message : String(e)}`,
+      );
     }
   }
 
-  const agent = await loadAgent();
-  if (!agent?.runAgent) {
-    return {
-      mode: "dropped",
-      replies: [],
-      reason: "No queue and no agent module — message persisted, not answered.",
-    };
-  }
-
-  const run = Promise.resolve(agent.runAgent(job));
+  // A throw here would 500 the webhook, and a provider retries a non-200 — but
+  // the message is already persisted, so the retry dedups and the customer is
+  // never answered. "dropped" carries the real reason back to the route instead.
+  const run = runAgent(job).catch((e: unknown) => {
+    console.error("[channels] inline agent run failed:", e);
+    return e instanceof Error ? e : new Error(String(e));
+  });
 
   if (!opts.timeoutMs) {
     const result = await run;
-    return { mode: "inline", replies: result?.replies ?? [] };
+    if (result instanceof Error) return { mode: "dropped", replies: [], reason: result.message };
+    return { mode: "inline", replies: result.replies };
   }
 
   // The run keeps going after we give up on it; whatever it writes is picked up
@@ -274,7 +240,8 @@ export async function dispatchInbound(
   try {
     const result = await Promise.race([run, timeout]);
     if (result === null) return { mode: "inline", replies: [], reason: "timeout" };
-    return { mode: "inline", replies: result?.replies ?? [] };
+    if (result instanceof Error) return { mode: "dropped", replies: [], reason: result.message };
+    return { mode: "inline", replies: result.replies };
   } finally {
     if (timer) clearTimeout(timer);
   }

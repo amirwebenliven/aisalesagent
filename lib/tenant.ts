@@ -23,13 +23,39 @@ export async function currentOrg() {
   const session = await getSession();
 
   if (session) {
-    const org = await prisma.organization.findFirst({
-      where: { id: session.organizationId, isActive: true },
+    // Resolve THROUGH the membership, never from the cookie's claim alone.
+    //
+    // The organizationId in the token is a claim the user carries for 30 days.
+    // Looking the organization up directly meant nothing ever re-checked that
+    // the user still belongs to it: deleting a Membership — which is exactly
+    // what "remove this person from the workspace" does — left their existing
+    // session working completely, read and write, until the token expired.
+    // Sessions are stateless, so there is no server-side revocation to fall
+    // back on; this join IS the revocation check.
+    //
+    // It also means a future workspace switcher cannot become a one-parameter
+    // tenant hop: an organizationId the user has no membership for resolves to
+    // nothing here, whoever put it in the token.
+    const membership = await prisma.membership.findFirst({
+      where: {
+        userId: session.userId,
+        organizationId: session.organizationId,
+        organization: { isActive: true },
+      },
+      include: { organization: true },
     });
-    if (org) return org;
-    // Cookie points at an org that was deleted or deactivated. Fall through:
-    // in production that throws below and middleware sends them to /login,
-    // which issues a session that matches reality.
+    if (membership) return membership.organization;
+
+    // The cookie is validly signed but no longer resolves: the organization was
+    // deleted or deactivated, or this user's membership of it was revoked.
+    // Middleware sees a good signature and lets the request through, so without
+    // this the user is stuck — every page fails to resolve an org, and the Sign
+    // out control lives in the sidebar that cannot render. Send them somewhere
+    // that can actually clear the cookie (a Server Component cannot).
+    //
+    // /api/auth/stale MUST apply the same membership test, or a revoked member
+    // ping-pongs: here → stale → "the org exists, go home" → here → forever.
+    redirect("/api/auth/stale");
   }
 
   if (!devFallbackAllowed()) {

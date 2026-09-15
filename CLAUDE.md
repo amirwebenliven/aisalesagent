@@ -332,7 +332,19 @@ Run it again whenever prices move — which, on current evidence, is every few w
 ## 12. Non-negotiables
 
 - **Encrypt `ChannelConnection.credentials` at rest. Never log it.** These are keys to customers' WhatsApp and email.
-- **Dedup on `Message.providerId`** before any processing.
+- **Dedup is per CONVERSATION, never global** — `@@unique([conversationId, providerId])`.
+  A global unique on `providerId` shipped once and caused silent cross-tenant data loss: in a
+  Telegram private chat `chat.id` IS the user's own id (identical for every bot they message) and
+  `message_id` restarts low per chat, so one person messaging two tenants' bots produced the same
+  `tg:<chatId>:<messageId>`. The second insert hit P2002, `persistInbound` reported "deduped", the
+  webhook answered 200 — and that tenant's customer message was never stored, queued or answered,
+  with no retry, because 200 means "we have it". Never re-narrow this key.
+  Regression test: `bun scripts/verify-isolation.ts`.
+- **Resolve the organization through `Membership`, never from the session claim alone.**
+  `currentOrg()` looking the org up directly meant a deleted membership left that user's session
+  fully working for the remaining 30 days — sessions are stateless, so this join IS the
+  revocation. `/api/auth/stale` must apply the SAME test, or a revoked member ping-pongs between
+  the two forever instead of being logged out.
 - **Cap AI spend per conversation and per business per day**, with a hard stop. A prompt-injected loop should cost pennies, not a month's budget.
 - **Retention policy from day one.** Conversations contain third parties' personal data; we are a processor, not the controller.
 - **Never let a customer wait on a model call.** Webhook returns 200 immediately, always.

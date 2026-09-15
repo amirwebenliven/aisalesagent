@@ -5,6 +5,7 @@ import TelegramConnect from "@/components/channels/TelegramConnect";
 import WidgetConnect from "@/components/channels/WidgetConnect";
 import { prisma } from "@/lib/db";
 import { widgetEmbedSnippet } from "@/lib/channels";
+import { usesWebhook } from "@/lib/channels/telegram";
 import { currentOrg } from "@/lib/tenant";
 
 export const dynamic = "force-dynamic";
@@ -92,11 +93,20 @@ export default async function Channels() {
     prisma.agent.findMany({
       where: { organizationId: org.id },
       orderBy: { createdAt: "asc" },
-      select: { id: true, name: true },
+      // The delays come along so the card can state what a tester should expect
+      // — "15–30 seconds" read off the agent that will actually answer, rather
+      // than a number written into the UI that drifts the day someone edits it.
+      select: { id: true, name: true, replyDelayMinMs: true, replyDelayMaxMs: true },
     }),
   ]);
 
   const byKind = new Map(connected.map((c) => [c.kind, c]));
+
+  // On an http APP_URL Telegram cannot push to us, so connectTelegram parks a
+  // note explaining that the worker has to be running. It is stored in
+  // lastErrorMessage because that is the field this screen already renders —
+  // but it is information, not a failure, and must not be painted like one.
+  const webhookMode = usesWebhook();
 
   return (
     <>
@@ -105,6 +115,10 @@ export default async function Channels() {
         <section className="grid g2">
           {CATALOGUE.map((ch) => {
             const live = byKind.get(ch.kind);
+            const pollingNote =
+              live?.kind === "TELEGRAM" && live.status === "ACTIVE" && !webhookMode
+                ? live.lastErrorMessage
+                : null;
             return (
               <div className="card card-p" key={ch.kind}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
@@ -133,11 +147,11 @@ export default async function Channels() {
                   </div>
                 </div>
 
-                {live?.externalId && (
+                {/* Telegram's handle is not here: it is the headline of the bot
+                    panel below, next to the link people came for. */}
+                {live?.externalId && live.kind !== "TELEGRAM" && (
                   <div className="small dim mono" style={{ marginTop: 12 }}>
-                    {/* For Telegram the externalId IS the bot username — the thing
-                        that proves the token reached the right bot. */}
-                    {live.kind === "TELEGRAM" ? `@${live.externalId}` : live.displayName}
+                    {live.displayName}
                   </div>
                 )}
 
@@ -147,7 +161,9 @@ export default async function Channels() {
                   </p>
                 )}
 
-                {live?.lastErrorMessage && (
+                {/* The polling note is rendered by the bot panel instead, as a
+                    note. Everything else here is a real provider failure. */}
+                {live?.lastErrorMessage && !pollingNote && (
                   <p className="small" style={{ marginTop: 10, color: "var(--warn)" }}>{live.lastErrorMessage}</p>
                 )}
 
@@ -160,6 +176,30 @@ export default async function Channels() {
                     // No button at all. A disabled "Connect" still reads as "one
                     // day away"; the reason it cannot be pressed is the useful part.
                     <p className="small dim">{ch.blocker}</p>
+                  ) : ch.kind === "TELEGRAM" ? (
+                    // Deliberately NOT split across the live/not-live branches:
+                    // TelegramConnect owns the setup dialog, and a revalidate
+                    // that moved it to a different slot in this tree would
+                    // remount it — closing the dialog, and the success panel
+                    // with it, at the exact moment it is worth reading.
+                    <>
+                      <TelegramConnect
+                        agents={agents}
+                        connected={
+                          live?.externalId
+                            ? { username: live.externalId, agentId: live.agentId, note: pollingNote }
+                            : null
+                        }
+                      />
+                      {live && (
+                        <ChannelControls
+                          channelId={live.id}
+                          status={live.status}
+                          agentId={live.agentId}
+                          agents={agents}
+                        />
+                      )}
+                    </>
                   ) : live ? (
                     <>
                       {live.kind === "WIDGET" && <WidgetConnect embed={widgetEmbedSnippet(live.webhookSecret)} />}
@@ -170,8 +210,6 @@ export default async function Channels() {
                         agents={agents}
                       />
                     </>
-                  ) : ch.kind === "TELEGRAM" ? (
-                    <TelegramConnect agents={agents} />
                   ) : ch.kind === "WIDGET" ? (
                     <WidgetConnect embed={null} />
                   ) : null}
