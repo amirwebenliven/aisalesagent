@@ -20,7 +20,7 @@ Everything marked **✔ verified** was tested today, not read about.
 
 ## 2. What the customer will experience
 
-Three conversations the agent can hold once connected. (Illustrative wording; the product data is what the agent would actually fetch.)
+Three conversations the agent can hold once connected. (Illustrative wording; the product data is what the agent would actually fetch. **The order-tracking exchanges are mock-ups — order lookup is not connected yet.** If shown, label them "example of what it will say", or the client will ask to see it live.)
 
 **Stock and price — live from the catalogue**
 
@@ -37,7 +37,7 @@ Three conversations the agent can hold once connected. (Illustrative wording; th
 **Past purchases**
 
 > **Customer:** what did I buy last time? need the same size for my other kid
-> **Agent:** Your last order (#1102, March) was a Mogoo Classic 14" in Yellow. The same model is available in Blue, Red and Green right now at Dhs. 229.03. Shall I check a 16" for the older one?
+> **Agent:** Your last order (#1102, March) was a Mogoo Classic 14" in Yellow. The same model is available in Blue, Red and Green right now — from Dhs. 229.03, prices vary by colour. Shall I check a 16" for the older one?
 
 And the guardrail every client wants to hear:
 
@@ -74,7 +74,10 @@ Both are switched on **per agent**, in the agent editor → **AI Abilities** tab
   **"Connected to universal-commerce · 13 tools"** — `search_catalog`, `lookup_catalog`, `get_product`, `create_cart`, `update_cart`, `get_cart`, `cancel_cart`, `create_checkout`, `update_checkout`, `get_checkout`, `complete_checkout`, `cancel_checkout`, `get_order`.
   So the agent can search the live catalogue in natural language, quote exact prices and real-time availability, build a cart and hand the customer a checkout link. (`get_order` here only reads orders/checkouts *that this channel created* — it is **not** a customer-history lookup. That is Part B.) *Nothing was saved to the account — the dialog was cancelled after the test.*
 
-- **✔ The store's policies/FAQ tool is empty.** The second Shopify endpoint, `https://choosemyride.ae/api/mcp`, exposes `search_shop_policies_and_faqs`; our test question about returns and delivery returned `[]`. Most likely the store's policy pages aren't filled in Shopify admin (**Settings → Policies**). Cheap fix for the client, and until then the agent answers policy questions from the knowledge base we build from his website instead.
+- **✔ The store's policies/FAQ tool works** (corrected after an independent re-test on 18 Sep — my first question had returned `[]`). The second Shopify endpoint, `https://choosemyride.ae/api/mcp`, exposes `search_shop_policies_and_faqs`; asked about returns it answered from the store's own Refund policy: returns within 14 days of delivery, no restocking or return fee, return labels provided, customers can self-manage returns (`/policies/refund-policy` is filled, ~1,000 chars). **Two gaps to raise with the client:** the **Shipping policy** page is empty (`/policies/shipping-policy` → 404 — fix in *Settings → Policies → Shipping*), and the tool currently answers *"International shipping available"* although `meta.json` says the store ships to **AE only** — so the agent's instructions must state the UAE-only rule until that Shopify setting is corrected, or a live demo could surface the contradiction.
+- **⚠ Per-colour pricing.** This store prices variants by colour (Classic 14": Green Dhs 229.03, Blue 259.05, Red 299.08). Demo replies should say "from Dhs …" rather than one price for all colours; the Classic 16" Blue at Dhs 285.03 quoted in §2 is correct.
+- **⚠ BIGGEST DEMO RISK — `meta.ucp-agent.profile`.** Every one of the 13 catalogue tools **requires** a `meta.ucp-agent.profile` URL; Shopify fetches and validates that profile and returns an error if it cannot load it. *Test connection* only ran `tools/list` ("Connected") — no real search has been made through DM Champ yet. DM Champ has no field for this, so the **model must fill it**: add to the agent's AI Instructions *"When calling the Shopify catalogue tools, always set `meta.ucp-agent.profile` to `https://shopify.dev/ucp/agent-profiles/examples/2026-08-25/valid-with-capabilities.json`"* (Shopify's own example profile), then run a real *"16 inch kids bike"* search in **Try Out** before the room. If it fails anyway, the fallback demo is a **custom function on `/search/suggest.json`** (public, no credentials, returns title / price / sale price / in-stock / link). Also: `get_order` on this endpoint needs a Dev Dashboard token DM Champ will never hold — one more reason it is not a customer-history lookup.
+- **✔ Identity check is feasible.** Order `email` and `phone` are "always available" to a Dev Dashboard custom app (no protected-customer-data review needed), so our lookup service can verify the contact against the order.
 
 - **✔ Two more public, no-token endpoints exist**, useful as a fallback custom function if ever needed:
   `https://choosemyride.ae/search/suggest.json?q=<words>&resources[type]=product&resources[limit]=5` (title, price, sale price, in stock, link, image) and `https://choosemyride.ae/products.json` (the whole catalogue).
@@ -89,7 +92,7 @@ Both are switched on **per agent**, in the agent editor → **AI Abilities** tab
 
 ### Part A — live catalogue, prices and stock (≈ 15 minutes, no credentials)
 
-Do this in the **ChooseMyRide sub-account** (create it first: *Sub Accounts → Add account → Account: owner first name / last name / email → Business → Features*).
+Do this in the **ChooseMyRide sub-account** (create it first: *Sub Accounts → Add account → Account: owner first name / last name / email → Business: name, country, language, timezone → Features*). **In the Features step:** raise the **Channel limit** above its default of **1** (Part C needs widget + WhatsApp + Instagram/Messenger), and switch the **developer** toggles on (custom functions, MCP servers) — otherwise *AI Studio → MCP Servers / Custom Functions* will be missing in his sub-account. Confirm they appear before the meeting. **Demo with `/api/ucp/mcp`, not `/api/mcp`** — the address DM Champ's docs use as their Shopify example exposes only the policies tool on this store (1 tool, not 13).
 
 1. Left menu **AI Studio → MCP Servers → Add server**.
 2. **Name:** `ChooseMyRide Shopify catalogue`
@@ -101,22 +104,24 @@ Do this in the **ChooseMyRide sub-account** (create it first: *Sub Accounts → 
 8. **AI Studio → AI Agents →** the ChooseMyRide agent **→ AI Abilities → MCP servers →** tick the server and its tools **→ Save changes**. (Up to 5 servers and 40 tools per agent.)
 9. Agent editor **→ Try Out →** type *"do you have a 16 inch kids bike, how much"* and watch it fetch. Then **Publish to live**.
 
-Optional second server, once the client fills his Shopify policies: **Server URL** `https://choosemyride.ae/api/mcp` (tool `search_shop_policies_and_faqs`).
+Second server, same day: **Server URL** `https://choosemyride.ae/api/mcp` (tool `search_shop_policies_and_faqs`) — already answering from his Refund policy; ask the client to fill the Shipping policy so delivery questions are covered too.
 
 ### Part B — order status, tracking and purchase history (1–2 days, needs one Shopify permission)
 
 **The Shopify side — what we need from the client.** Read-only access to orders. In Shopify that is an app with the `read_orders` scope (`read_all_orders` if he wants history older than 60 days — which he will, for "what did I buy last time"). The client's store owner has to approve it; a staff member needs *App development → Develop* permission.
 
-**Token note — this is the part DM Champ's bot got slightly wrong.** Their docs and their support bot describe pasting a permanent `shpat_…` token into the function's header. Shopify **stopped issuing those to new apps** (the "Develop apps" screen in admin no longer creates them; existing tokens still work). A new app in Shopify's **Dev Dashboard** gives a Client ID and secret, and the quick token from those **expires every 24 hours** — useless as a static header. The permanent, non-expiring token is still obtainable, but only through a **one-time OAuth authorisation** that needs a developer with a redirect URL. Shopify staff on the developer forum: it *"gives you a non-expiring offline token that works exactly like the old legacy tokens — it stays valid until the app is uninstalled."* That is a 30–60 minute job for us, once.
+**Token note (corrected 18 Sep after an independent check of DM Champ's docs).** Shopify **stopped issuing ready-made `shpat_…` tokens to new apps** in 2026 (the admin "Develop apps" screen no longer creates them; existing tokens keep working). A new app in Shopify's **Dev Dashboard** gives a Client ID and secret; the quick *client-credentials* token from those **expires every 24 hours** (`expires_in: 86399`) — useless as a static header — and it only works when app and store are in the **same Shopify organisation**, i.e. never for an app we create against his store. The permanent, non-expiring token comes from a **one-time authorisation**: open Shopify's approve URL for the app (`read_orders` scope, redirect = the store's own homepage), the owner clicks *Install*, copy the `code` from the redirected URL, exchange it once for a permanent `access_token`. DM Champ's own custom-functions page documents exactly this for Shopify and budgets **about ten minutes per store** — the exchange can even be run from the function builder's Test panel, so no developer server is needed. (The in-app support bot skipped that step; the docs did not.) Shopify staff on the developer forum confirm the result: *"a non-expiring offline token that works exactly like the old legacy tokens — it stays valid until the app is uninstalled."* Allow 30 minutes for our first time.
 
-**Recommended architecture: a small read-only lookup service we host, in front of Shopify.** Rather than pasting the Shopify token into DM Champ, we run a tiny endpoint (a Cloudflare Worker or a route on our own server) that:
+**Scope caveat:** `read_orders` sees the **last 60 days** only. `read_all_orders` (full history — "what did I buy last time?") **has to be requested from Shopify and approved**, not just ticked. Promise "recent orders" at launch and "full history once Shopify approves".
+
+**Recommended architecture: a small read-only lookup service we host, in front of Shopify.** Pasting the permanent token straight into DM Champ works (their docs do exactly that) — we choose not to, for the reasons below. We run a tiny endpoint (a Cloudflare Worker or a route on our own server) that:
 
 - holds the Shopify token (DM Champ never sees it — if the DM Champ account is ever compromised, the client's Shopify is not);
 - takes `order_number` + `phone_or_email`, fetches the order, and **only returns it if the contact matches** — identity checking in code, not in a prompt;
 - returns a **trimmed, human-readable** JSON (status, carrier, tracking number, tracking link, items, ETA) instead of Shopify's several-hundred-line order object — cheaper tokens, fewer AI mistakes;
-- answers in under 10 seconds (DM Champ's limit) and returns clear error text ("No order 1187 for that phone number") that the AI can relay.
+- answers in a few seconds (DM Champ's guidance is under 10 s) and returns clear error text ("No order 1187 for that phone number") that the AI can relay.
 
-A no-code alternative if we don't want to host anything: **Make.com** (Shopify connector, handles Shopify login for you) with *Custom webhook → Shopify: Search orders → Webhook response*. DM Champ's own docs recommend Make/n8n for exactly this because they can return data to the AI (plain Zapier cannot).
+No-code alternatives if we don't want to host anything: **Make.com** (Shopify connector, handles Shopify login for you) with *Custom webhook → Shopify: Search orders → Webhook response*, or **n8n** — both can send a reply back to the calling request, which a custom function needs (Zapier's standard catch-hook cannot return step results). DM Champ also has its own built-in no-code route: an **Automation** with an *AI Agent Function* trigger and a *Return response* step (the agent waits up to 25 seconds). *(Corrected 18 Sep: an earlier version claimed DM Champ's docs recommend Make/n8n for this — they don't say that.)*
 
 **The DM Champ side — the custom function, field by field.** *AI Studio → Custom Functions → New function*:
 
@@ -127,24 +132,24 @@ A no-code alternative if we don't want to host anything: **Make.com** (Shopify c
 | **AI action** | `Call this when a customer asks about an order, delivery, tracking, or what they bought. Ask for the order number AND the phone number or email used at checkout before calling. If the result says no match, tell the customer politely and offer to connect a human. Never reveal an order to someone whose phone/email does not match.` |
 | **Method** | `GET` |
 | **URL** | `https://<our-lookup-service>/choosemyride/orders` |
-| **Skip system data** | leave **off** (DM Champ then also sends `system.contact` — the WhatsApp number the customer is writing from, which the service can use as a second check) |
+| **Skip system data** | leave **off** (DM Champ then also sends a `system` block — `system.contact` is the full contact record incl. the WhatsApp number the customer is writing from, plus `system.channel` and a `system.test` flag — which the service uses as a second identity check and to ignore Try Out tests) |
 | **Headers** | `Authorization` = `Bearer <a key we issue for this client>` |
 | **Input parameter 1** | name `order_number` · type `query_param` · **Required** on · description `The order number the customer gives, digits only, e.g. 1187` |
 | **Input parameter 2** | name `contact` · type `query_param` · **Required** on · description `The phone number or email address the customer used when ordering` |
 | **Response mapping** | leave empty (the service already returns only what's needed) |
-| **Execution limits** | **Read-only function** on · **Serve cached result on repeat calls** on · **Max runs per conversation** `5` · **Max runs per time window** `10` within `60` minutes |
+| **Execution limits** | **Read-only function** on · **Serve cached result on repeat calls** **OFF** (the cache lives up to 24 h — a repeat "where's my order" would get yesterday's status) · **Max runs per conversation** `5` · **Max runs per time window** `10` within `60` minutes |
 | **Test** | fill a real order number + contact → **Run test** → check the JSON → **Create function** |
 
 Then **AI Agents → the agent → AI Abilities → Custom functions →** tick `lookup_order` **→ Save changes**, and test in **Try Out** before **Publish to live**.
 
-If someone insists on calling Shopify directly from DM Champ (not recommended — token in a third party, no identity check, giant responses), the shape is: **GET** `https://xnk706-rr.myshopify.com/admin/api/2026-07/orders.json?status=any` · header `X-Shopify-Access-Token: <token>` · parameter `name` as `query_param`, required (Shopify's `name` is the order number with `#`) · response mapping to `orders` only. Fields the AI needs are `fulfillment_status`, `financial_status`, `fulfillments[].tracking_company / tracking_number / tracking_url / shipment_status`, `line_items[].title`.
+If someone insists on calling Shopify directly from DM Champ (not recommended — token in a third party, no identity check, giant responses), the shape is: **GET** `https://xnk706-rr.myshopify.com/admin/api/2026-07/orders.json?status=any` (the technical `.myshopify.com` domain, not the custom domain; `2026-01` per DM Champ's docs works too) · header `X-Shopify-Access-Token: <token>` · parameter `name` as `query_param`, required — **digits only** (`1187`; a raw `#` makes Shopify ignore the filter) · response mapping to `orders` only. Fields the AI needs are `fulfillment_status`, `financial_status`, `fulfillments[].tracking_company / tracking_number / tracking_url / shipment_status`, `line_items[].title`. **Caveat:** the REST `name` (and `email`) filter is **undocumented and unsupported** by Shopify — it works today by convention; the documented equivalent is GraphQL `orders(query: "name:1187")`. One more reason to keep the lookup in our own service, where we can switch to GraphQL without touching the client's agent.
 
 ### Part C — putting the agent where his customers are
 
 - **Website chat bubble on the Shopify store.** DM Champ: **Settings → Channels → Website chat widget → Manage → Channels & Embed** → under *Route these chats to* pick the agent → copy the snippet (`<script src="https://api.dmchamp.com/v1/chat-widget/CONFIG_ID?agent=AGENT_ID"></script>`; on the white-label domain the host differs). Shopify admin: **Online Store → Themes → ⋯ → Edit code → `theme.liquid`** → paste just above `</body>` → **Save**. Live on every page in a minute.
-- **WhatsApp.** Two options: **WhatsApp Web pairing** — his existing number, scan a QR the way you pair WhatsApp on a laptop, live in five minutes, unofficial; or **WhatsApp Business API** — rent a number through the platform or bring his own; Meta-official, supports message templates, takes longer. Group chats are never answered on either. **Note for pricing:** Meta's WhatsApp pricing change on **1 October 2026** makes replies inside the 24-hour window chargeable per message — any quote needs a clause for it.
+- **WhatsApp.** Two options: **WhatsApp Web pairing** — his existing number, scan a QR the way you pair WhatsApp on a laptop, live in minutes, unofficial (Meta could break it; spammy volumes risk a ban); costs the agency **50 credits a month per connected number** (≈ $5) with no per-message fee, and **his phone must come online at least once every 14 days** or the link drops. Or **WhatsApp Business API** — rent a number through the platform or bring his own; Meta-official, supports message templates, takes longer. Group chats are never answered on either. **Note for pricing:** Meta's change on **1 October 2026** makes replies inside the 24-hour window chargeable per message **on the Business API route only**, billed by Meta to his WhatsApp Business Account — quote whichever route he picks as its own line.
 - **Instagram DMs / Facebook Messenger** — connected under Settings → Channels with his Meta Business login.
-- **Human handover.** In the agent's *AI Instructions → Escalation & Wrap-up → Alert Human When*, write the rules: refunds, damaged goods, angry customer, anything the agent can't find. His team replies from the same inbox; the AI stays quiet on that thread until handed back.
+- **Human handover.** In the agent's *AI Instructions → Escalation & Wrap-up → Alert Human When*, write the rules: refunds, damaged goods, angry customer, anything the agent can't find. His team gets a **notification** (not a summary — say "the whole conversation is waiting in the inbox") and replies from the same inbox; the AI stays paused on that thread until someone turns it back on. **Internal:** for a managed sub-account the alert follows the *agency's* notification settings — check them, or his team may never receive the alert emails.
 
 ---
 
@@ -180,6 +185,12 @@ If someone insists on calling Shopify directly from DM Champ (not recommended �
 - **"What does it cost me per chat?"** — A typical order-tracking chat is about one credit. Your subscription includes a monthly allowance; we top up if you grow.
 - **"What if the customer writes in Arabic?"** — The agent replies in the customer's language automatically; the store's data comes back in English and it translates.
 - **"Why not just use Shopify Inbox?"** — Shopify Inbox is one channel (the website) and its automation is canned replies. This is one brain across WhatsApp, Instagram and the site, with live lookups and a human handover.
+- **"Can it give a discount?"** — No. It quotes the live Shopify price including sale prices; promo rules you give it, it repeats; it never invents an offer.
+- **"Can it do returns / refunds / cancellations?"** — It explains the policy and reports order status; it cannot change anything. Those go to your team with a summary — read-only is deliberate.
+- **"Orders placed by phone or in the showroom?"** — Lookup covers Shopify orders only. Ask what share is off-Shopify before promising anything; draft orders in Shopify would bring them into reach.
+- **"Customer doesn't know the order number?"** — v1 needs order number + phone/email, both matching. Lookup by phone alone is a possible follow-up; don't promise a date.
+- **"Is this your own software?"** — *Agree the wording with the boss before the room.* A truthful line that names no vendor: "The messaging platform is licensed and runs under our brand; the Shopify connection, the order-lookup service, the knowledge base and the setup are ours." Do not claim we built all of it.
+- **"What does it cost me per month?"** — Do **not** quote the credit cost basis (that is our margin). Say: monthly fee with an allowance of conversations + one-time setup; Meta's WhatsApp fees passed through at cost; proposal follows tomorrow. The boss fixes the figure before the room.
 
 ---
 
@@ -187,9 +198,29 @@ If someone insists on calling Shopify directly from DM Champ (not recommended �
 
 - **This is the "bridge" deal.** He gets our brand on DM Champ now; we move him onto our own product when it can do the same. The live-data executor is our Phase 13 in `../CLAUDE.md` §15 — this engagement is the first real specification for it (order lookup with identity verification, trimmed responses, per-tenant secret storage).
 - **The lookup service we build for him is not throwaway.** Write it as a generic "Shopify orders connector" behind a per-client key — it becomes the first connector in our own product.
-- **Credit maths for the boss.** MAX tier: 0.25/reply + 0.25/tool call. 877 unallocated credits ≈ 3,500 AI replies or ≈ 875 order-tracking chats. Allocate ChooseMyRide a monthly limit on the sub-account so a bot storm cannot drain the agency pool.
+- **Credit maths for the boss.** MAX tier: 0.25/reply + 0.25/tool call. 877 unallocated credits ≈ 3,500 AI replies or ≈ 875 order-tracking chats **in total — the AppSumo pool is a one-time allocation and does not refill monthly**; after it, every credit is bought at $0.10 (or BYOK on Pro). The sub-account **spending limit is a cap on how much of the agency pool he may draw, not a separate allowance and not monthly** — set it so a bot storm cannot drain the pool, raise it as he uses it, and price his monthly allowance on the $0.10 replacement cost, not on the free pool. WhatsApp Web pairing adds 50 credits/month per number.
 - **BYOK does not zero MAX-tier costs** — only Pro (Claude Sonnet) replies become free with an Anthropic key. Don't promise "free AI replies" on this account.
 - **Nothing was changed in the boss's DM Champ account today.** The MCP *Test connection* and the custom-function form were explored and cancelled; the tab was left on the EVA agent's AI Abilities page.
+
+### Presenter's checklist (added after the independent review, 18 Sep)
+
+**The night before**
+- **White-label first.** Today's walkthrough was on `app.dmchamp.com` with vendor branding. If the boss screen-shares that, the client sees the vendor's name in the URL bar, logo and the "Connected to universal-commerce" message. Set the custom domain, logo and colours (*Settings → Advanced → White Labeling*) and create the ChooseMyRide sub-account **before** any screen is shown. Demo from the white-label domain only.
+- **Pre-stage Part A** in the ChooseMyRide sub-account: MCP server added (`/api/ucp/mcp`), tools ticked on the agent, the `meta.ucp-agent.profile` instruction added to the agent (§4), and **one real search run in *Try Out*** — "Connected · 13 tools" proves the address, not the calls. Leave the agent **unpublished**; it stays in *Try Out* until the client agrees. If the search fails, build the `/search/suggest.json` custom function as the demo fallback.
+- **Fallback if the live demo fails** (login, 2FA, internet, vendor down): a screen recording of *Test connection → Connected · 13 tools* and of one *Try Out* exchange, URL bar cropped; plus a no-login proof anyone can open in a browser: `https://choosemyride.ae/search/suggest.json?q=mogoo%2016&resources[type]=product&resources[limit]=5` — "this is the live data your store already publishes; the agent reads exactly this."
+- **Get from the boss, in writing:** the monthly fee in AED, included conversations, setup fee, overage, pilot/notice terms, and the agreed wording for *"is this your software?"* (§8). None of these are in this brief, and the presenter must not improvise them — and must **never** read out the credit cost basis in §3.
+
+**Thirty minutes before**
+- Re-check the demo product: Mogoo Classic 16" Kids Bike, Blue, Dhs 285.03 (18 Sep price) — still in stock, same price? Pick a backup product.
+- Sub-account, agent and MCP server exist and are ticked; agent not live.
+
+**In the room**
+- Open with the strongest line: *"Your store is on Shopify — this morning we connected an AI to your live catalogue with no password, first time, and it found all 512 products."*
+- Say "MCP" only if asked: *"a standard way for Shopify to publish a menu of live lookups; we paste one address and the AI can search your catalogue with no password."*
+- **Sizing questions to ask** (needed to price the proposal): chats per month across WhatsApp / Instagram / site; orders per month; share of orders not placed on Shopify; team hours currently covered; how many people will use the inbox.
+- **Promise:** live catalogue, price and stock answers on the three channels; order status/tracking within ~two working days of his approval click; read-only; no payments in chat; identity check before any order; human handover; automatic translation. **Do not promise:** a price without the boss's sign-off; a date for Instagram/Messenger beyond "after Meta review"; voice notes or images; transcript export or a hosting region ("I'll confirm in writing"); order lookup by phone alone.
+- **Close with a next step:** agreement to start; a 30-minute slot with the store owner this week for the Shopify approval click; the Shipping policy filled in *Settings → Policies*. Without a stated next step the two-day timeline cannot start.
+- The client-facing page for the meeting is the published artifact "ChooseMyRide Agent Guide" (brand-neutral; no vendor name, no credentials, no costs) — this markdown file is **not** for the client.
 
 ---
 
