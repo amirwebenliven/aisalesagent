@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition, type ReactNode } from "react";
-import { connectTelegramChannel, type TelegramConnectResult } from "@/app/channels/actions";
+import { connectTelegramChannel, type TelegramConnectResult } from "@/app/(app)/channels/actions";
 import Modal from "@/components/ui/Modal";
 
 /**

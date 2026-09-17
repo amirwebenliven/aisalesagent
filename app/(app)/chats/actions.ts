@@ -93,7 +93,7 @@ export async function sendHumanReply(conversationId: string, body: string): Prom
   }
 
   revalidatePath("/chats");
-  revalidatePath("/");
+  revalidatePath("/dashboard");
 
   if (deliveryError) {
     // The provider's own words. A token that expired and a network blip need
@@ -125,7 +125,7 @@ export async function setConversationState(conversationId: string, next: string)
   if (!count) return { ok: false, error: "Conversation not found." };
 
   revalidatePath("/chats");
-  revalidatePath("/");
+  revalidatePath("/dashboard");
 
   const message =
     parsed.data === "HUMAN_ACTIVE"

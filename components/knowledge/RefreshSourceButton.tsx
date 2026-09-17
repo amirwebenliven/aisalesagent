@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { refreshSource } from "@/app/knowledge/actions";
+import { refreshSource } from "@/app/(app)/knowledge/actions";
 import type { ActionState } from "@/components/ui/action-state";
 import Notice from "@/components/ui/Notice";
 

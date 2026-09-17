@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { sendHumanReply } from "@/app/chats/actions";
+import { sendHumanReply } from "@/app/(app)/chats/actions";
 import type { ActionState } from "@/components/ui/action-state";
 import Notice from "@/components/ui/Notice";
 

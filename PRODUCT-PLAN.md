@@ -12,6 +12,16 @@ A business signs up, connects the places its customers already message it — Wh
 
 **The job to be done:** a lead messages at 11pm and gets a real answer in thirty seconds instead of a reply on Monday.
 
+### Where it sits in the market (17 Sep 2026)
+
+Between DM Champ and AiEngage. **DM Champ** (`research/01`–`08`) is an AI agent for DMs with almost no CRM, sold to agencies who rebrand it. **AiEngage** (`research/10`) is a full CRM — pipeline, quotes, Razorpay, calling, a mobile app — with an AI WhatsApp agent as one of nine features, sold to Indian SMBs at ₹1,799–9,999 a month; their reps pitched it in our office this week. We are agent-first like DM Champ, we add the CRM basics an SMB uses daily (contacts, assignment, a simple pipeline, follow-ups), and we do three things neither does:
+
+1. **The agent answers from the customer's own data** — stock, orders, availability — through named read-only queries a human defined (§4 step 5). The model never writes SQL. *Status: schema exists; the executor and UI are Phase 13.*
+2. **Any AI provider, the customer's key, the real cost on screen** — per-message USD and cache hit rate, never "credits". *Status: built.*
+3. **Risk in the open** — warm-up caps enforced at send time, escalation as a tool the inbox enforces (§7), spend caps per conversation and per day, ban-risk disclosure at connect time. *Status: built, except the disclosure copy in the UI.*
+
+What AiEngage has that we do not, said plainly: official WhatsApp, Instagram and Messenger, voice calling, a mobile app, a Kanban pipeline, quotes and Razorpay, Meta/Google ads lead sync, a support team and 2,000 references. Phases 13–16 in §8 sequence what we close and what we leave. We do not sell against them as a CRM; we sell the agent that answers from the customer's stock list and connects to whatever CRM they already have. The full comparison and the "could we win the deal" verdict are in `research/10-competitors-aiengage-vs-dmchamp.md`.
+
 ---
 
 ## 2. The user journey
@@ -169,11 +179,15 @@ This is the part that has to be good, and it is mostly instruction design rather
 
 ## 7. Escalation is the feature
 
-The single thing that makes this safe to sell is that the AI **knows when to stop**. From the real transcript we captured:
+The single thing that makes this safe to sell is that the AI **knows when to stop**.
 
-> *"The cookware side is a little different, since it's food-contact and I don't want to point you to the wrong chemistry there."*
+We first saw the behaviour in August on **DM Champ's** agent, on the boss's foundergrowth.ai account — *"The cookware side is a little different, since it's food-contact and I don't want to point you to the wrong chemistry there."* Good line; not our product. It said it in prose and no function fired.
 
-It recognised a question it should not answer, said so, and kept the lead. That is worth more than any amount of sales polish.
+On 18 Sep 2026 the same four customer messages were replayed through **our** agent (`bun scripts/replay-demo.ts`, seeded Al Taher workspace, eight crawled FAQs, minimax-m3). Ours said:
+
+> *"Rajesh, the cooking utensils part is a food-contact application — I don't want to guess on that one, so I'll pass it to our team to advise properly."*
+
+— and in the same turn **called `alertHuman`** with the reason *"Food-contact chrome plating enquiry for cooking utensils — needs proper technical guidance on food-safe chemistry."* The thread moved to the inbox. That is the difference between a sentence and an escalation, and it is the one the homepage demo now shows (`components/marketing/LiveDemo.tsx`), verbatim, including the turn where it failed to infer "decorative finish" from the one-word answer "Elegant." Measured cost for all four replies: $0.0014, cache hit 99% by turn three.
 
 **Hard-won implementation note, verified in testing on 14 Sep 2026:** models will happily *describe* an escalation in prose — "I'll pass this to the team" — and never call the function. Nobody is notified, the lead goes cold, and nothing appears broken. The fix is an imperative instruction that saying it is not doing it:
 
@@ -192,22 +206,38 @@ Each phase ends with something a customer could use. Estimates assume one develo
 | **0 · Foundations** | 1 | Bun + Next + Prisma + Postgres, schema, crypto, env | **Done** |
 | **1 · Model layer** | 1 | OpenAI-compatible client, BYOK, prompt assembly, cost accounting | **Done** |
 | **2 · Dashboard UI** | 1 | All screens reading real data | **Done** |
-| **3 · Agent loop** | 1–2 | Queue + worker, tool registry, `alertHuman` / `captureContact`, Try-out tab live | Next |
-| **4 · Telegram** | 1 | First real channel end to end — no approval needed | |
-| **5 · Auth + onboarding** | 2 | Signup, sessions, the six-step wizard | |
-| **6 · Knowledge crawler** | 2 | Crawl → FAQs → pgvector retrieval, Refresh | |
-| **7 · Website widget** | 1–2 | Embeddable script + public chat endpoint | |
-| **8 · WhatsApp QR** | 1–2 | WAHA, pairing, warm-up caps, risk disclosure | |
-| **9 · Live data** | 2 | Read-only connectors, named queries, guided SQL | |
-| **10 · Meetings** | 1–2 | Availability, Google Calendar, `bookMeeting` | |
-| **11 · Follow-ups** | 1 | Scheduled jobs, caps | |
-| **12 · Harden** | 2 | Dedup, retries, rate limits, spend caps, error log | |
+| **3 · Agent loop** | 1–2 | Queue + worker, tool registry, `alertHuman` / `captureContact` (+ `tagContact`, `scheduleFollowUp`, `bookMeeting`), Try-out tab live | **Done** |
+| **4 · Telegram** | 1 | First real channel end to end — no approval needed | **Done — live**, answering real customers |
+| **5 · Auth + onboarding** | 2 | Signup, sessions, the six-step wizard | **Partial** — multi-tenant auth done, isolation audited (2 real bugs fixed, regression-tested); the wizard is not built, its screens exist separately → Phase 14 |
+| **6 · Knowledge crawler** | 2 | Crawl → FAQs → pgvector retrieval, Refresh | **Done** — with Postgres full-text retrieval, not pgvector; it did not earn its migration |
+| **7 · Website widget** | 1–2 | Embeddable script + public chat endpoint | **Done** |
+| **8 · WhatsApp QR** | 1–2 | WAHA, pairing, warm-up caps, risk disclosure | **Built** — warm-up caps enforced at send; awaiting first real pairing; disclosure copy not yet in the UI |
+| **9 · Live data** | 2 | Read-only connectors, named queries, guided SQL | **Schema only** — `DataSource` / `DataQuery` exist; no executor, no UI → Phase 13 |
+| **10 · Meetings** | 1–2 | Availability, Google Calendar, `bookMeeting` | **Partial** — `bookMeeting` records the slot as a `REMINDER` job + contact note; no calendar write, no availability → Phase 15 |
+| **11 · Follow-ups** | 1 | Scheduled jobs, caps | **Done** for model-written text; a follow-up with no text waits for a human → AI-composed in Phase 15 |
+| **12 · Harden** | 2 | Dedup, retries, rate limits, spend caps, error log | **Partial** — per-conversation dedup, spend caps (per conversation, per org per day), login rate limits done; retry policy and error log open |
 
 **≈ 16–20 weeks to the complete product described above**, single-tenant-per-org but multi-org from day one.
 
 **Meta channels (Instagram, Messenger, official WhatsApp) land whenever Meta approves** — file the App Review in week 1, because it is calendar time nobody can compress.
 
 **Deliberately after launch:** white-label reselling (per-tenant branding, custom domains, credit ledgers, Stripe) — another 6–10 weeks, and worthless until paying customers exist.
+
+### Added 17 Sep 2026 — closing the gap to AiEngage
+
+Sequenced from `research/10-competitors-aiengage-vs-dmchamp.md`; the reasoning behind each is `CLAUDE.md` §15. Numbering continues; nothing above is renumbered.
+
+| Phase | Weeks | Ships | Status |
+|---|---|---|---|
+| **13 · Live data executor** | 2 | `queryLiveData` tool: JSON-Schema-validated arguments, driver-bound parameters, read-only transaction + statement timeout, row cap, a log row per call. Live Data screen: connection test, propose-then-approve query builder, call log | **Next** — the differentiator; ships before anything else below |
+| **14 · Win the demo** | 3 | Onboarding wizard (URL → agent pre-filled from the crawl → connect → sandbox); teammate assignment + escalation notifications (Telegram / email); CSV contact import/export; rule-based lead score as a tag; per-conversation cost in the thread; escalation rate + first-response time on the dashboard; ban-risk disclosure on the WhatsApp connect screen | |
+| **15 · The agent grows up** | 4 | Email adapter with threading; Google Calendar OAuth + availability so `bookMeeting` writes a real event (file Google verification when 13 starts); AI-composed follow-ups capped at two; voice notes / images / PDFs via the utility model; outbound webhooks (lead, escalation, booking); hand-written FAQs outrank crawled ones | |
+| **16 · CRM basics** | 4 | `Deal` with stages + Kanban view; Razorpay payment link as an agent tool (quotes stay human); public REST API + MCP server over contacts, conversations, queries | Build only after the §11 "table stakes vs noise" decision |
+| **Meta track** | Meta's clock, ~1 wk code | File Business Verification + App Review when 13 starts (if not already filed — nothing in the repo records it). On approval: official WhatsApp Cloud API, Instagram, Messenger adapters on the same `ChannelAdapter`; Meta Lead Ads webhook → contact + first WhatsApp message | Blocked on Meta |
+
+**≈ 13 weeks of code (13–16) to parity where it matters**; the Meta track runs alongside on Meta's calendar.
+
+**Deliberately not this year:** voice/calling (integrate Exotel or Twilio when a client pays for it), a native mobile app (a PWA with push is the honest step), SMS in India (DLT templates, no sales value). White-label stays where the paragraph above puts it.
 
 ---
 
@@ -244,6 +274,7 @@ The cost figure is the one to keep watching. At ~$0.0005 per reply, 10,000 repli
 
 - [ ] Fork **Chatwoot** (MIT — freely rebrandable and resellable) for the inbox and channel adapters instead of building them? Removes much of phases 4, 7, 8 — but it is Rails, which nobody here runs.
 - [ ] Hosting: existing VPS, or Vercel + managed Postgres? *(the BrandMyTissue VPS is at 99% disk)*
-- [ ] Pricing model for our own customers — flat monthly, per-conversation, or credits like DM Champ?
+- [ ] **Pricing in INR.** Proposal in `research/10`: **₹1,499 / ₹3,999 / ₹7,999** a month for 1,000 / 5,000 / 20,000 AI replies, overage ₹0.50 → ₹0.30 per reply, BYOK unmetered, contacts never charged, 14-day trial without a card; export at $29 / $79 / $149 as a regional price. Still to decide: (a) the metered unit — a *visible reply* or a *model call*? A reply that fires a tool is two calls, and billing per call is exactly what made DM Champ's real cost 2× its headline (`research/07`); the proposal bills per visible reply and absorbs the tool calls. (b) The default platform model — at full allowance the Business tier is 22% cost on a cheap model and **110%** on Sonnet-class, so the `CLAUDE.md` §11 eval settles it and Sonnet-class is BYOK-only. (c) How official-WhatsApp carrier fees (Meta charges per message from 1 Oct 2026) appear — a pass-through line, never baked into the tier. (d) ₹88/USD is assumed throughout; re-check before publishing.
+- [ ] **Which of AiEngage's CRM features are table stakes for our buyer, and which are noise?** Proposed split — table stakes: contacts with import/export and custom fields, assignment to a teammate, a simple stage pipeline, follow-up tasks, payment links (Phases 14 and 16). Noise for an agent-first product: built-in calling with recordings, a quote builder, a native mobile app, "100+ integrations", SMS. Test the split against the first five prospects' actual questions before Phase 16 is built — if nobody asks for the Kanban, it is not built.
 - [ ] Are any target clients contractually blocked from routing conversations through Chinese model providers (Qwen, Kimi, DeepSeek, GLM, MiniMax)? Ask before standardising.
 - [ ] **Rotate the OpenRouter development key** — it was shared in chat on 14 Sep 2026.

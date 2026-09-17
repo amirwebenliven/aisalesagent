@@ -1,8 +1,8 @@
 # DM Champ — Research Dossier
 
 **Prepared for:** decision on whether to resell DM Champ or build our own equivalent
-**Date:** 24 August 2026
-**Status:** Public research complete. Logged-in app teardown pending (see `06-open-questions.md`).
+**Date:** 24 August 2026, extended through 17 September 2026
+**Status:** Research complete, logged-in teardown done (`07`). **The boss chose to build.** This folder is now the competitive reference for that product, not the pending decision; the recommendation below is kept as the record of what was advised and why. The build lives in the repo root — see `../CLAUDE.md` §15 and `../PRODUCT-PLAN.md`.
 
 ---
 
@@ -15,7 +15,12 @@
 | `03-agency-white-label-model.md` | The reseller machinery — sub-accounts, branding, Stripe, margins |
 | `04-build-vs-buy.md` | What building our own would cost, the Meta approval moat, break-even maths |
 | `05-competitor-landscape.md` | Alternatives, and where DM Champ genuinely differs |
-| `06-open-questions.md` | What still needs answering from inside the logged-in app |
+| `06-open-questions.md` | What still needed answering from inside the logged-in app (answered in 07) |
+| `07-verified-in-app.md` | The logged-in teardown: real billing ledger, real consumption vs advertised, the live client |
+| `08-ai-provider-costs.md` | Would ChatGPT / Gemini / a cheap model make building cheaper? (model cost is a rounding error) |
+| `09-open-source-options.md` | Chatwoot, Chaskiq and the licence map — what can legally be forked and resold |
+| `10-competitors-aiengage-vs-dmchamp.md` | Three-way comparison after AiEngage visited the office (Sep 2026); INR pricing proposal |
+| `site/index.html` | The nine research pages as a linked static site; `pages/` holds the published-artifact variants |
 
 ---
 

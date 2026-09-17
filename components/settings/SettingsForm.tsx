@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
-import { clearApiKey, saveSettings } from "@/app/settings/actions";
+import { clearApiKey, saveSettings } from "@/app/(app)/settings/actions";
 import type { ActionState } from "@/components/ui/action-state";
 import Notice from "@/components/ui/Notice";
 import SubmitButton from "@/components/ui/SubmitButton";

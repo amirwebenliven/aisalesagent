@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { setConversationState } from "@/app/chats/actions";
+import { setConversationState } from "@/app/(app)/chats/actions";
 import type { ActionState } from "@/components/ui/action-state";
 import Notice from "@/components/ui/Notice";
 

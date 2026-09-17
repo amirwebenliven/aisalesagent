@@ -42,9 +42,10 @@ export async function GET() {
   });
 
   if (membership) {
-    // The session is fine — somebody hit this URL directly. Send them home
-    // rather than signing them out.
-    return NextResponse.redirect(new URL("/", env.APP_URL), 303);
+    // The session is fine — somebody hit this URL directly. Send them to the
+    // dashboard rather than signing them out. ("/" is the public marketing
+    // page; a signed-in user bounced there would read it as being logged out.)
+    return NextResponse.redirect(new URL("/dashboard", env.APP_URL), 303);
   }
 
   await destroySession();

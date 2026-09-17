@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { assignAgent, pauseChannel, resumeChannel } from "@/app/channels/actions";
+import { assignAgent, pauseChannel, resumeChannel } from "@/app/(app)/channels/actions";
 import type { ActionState } from "@/components/ui/action-state";
 import Notice from "@/components/ui/Notice";
 

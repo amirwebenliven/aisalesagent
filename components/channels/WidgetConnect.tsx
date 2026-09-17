@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { connectWidget } from "@/app/channels/actions";
+import { connectWidget } from "@/app/(app)/channels/actions";
 import type { ActionState } from "@/components/ui/action-state";
 import Notice from "@/components/ui/Notice";
 

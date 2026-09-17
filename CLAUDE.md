@@ -387,3 +387,61 @@ Use a tunnel (`cloudflared`, `ngrok`) for webhooks in development — Telegram a
 - [ ] Single-tenant per deployment, or multi-tenant from the start? Plan says single. Revisit only with paying customers.
 - [ ] Self-host on the existing VPS, or Vercel + managed Postgres? **Note: the BrandMyTissue VPS is at 99% disk.**
 - [ ] Is any client contractually blocked from having conversations routed through Chinese model providers? Ask before standardising on Qwen/Kimi/DeepSeek/GLM/MiniMax.
+
+---
+
+## 15. Competitive position and roadmap (17 Sep 2026)
+
+Context: sales reps from [AiEngage](https://aiengagecrm.com) pitched their AI sales agent in the office around 14 Sep. The brief that followed was "a complete package, better than our competitors", with a homepage of AiEngage's depth. The three-way comparison — capability table, where each competitor is genuinely stronger, the pricing floor maths — is [`research/10-competitors-aiengage-vs-dmchamp.md`](research/10-competitors-aiengage-vs-dmchamp.md). This section holds the decisions, not the table. The rule for both: **nothing planned is described as present.** Where this file and the code disagree, the code wins.
+
+### Position
+
+Between the two. DM Champ is an agent with no CRM, sold to agencies. AiEngage is a CRM — pipeline, quotes, Razorpay, calling, mobile app — with an AI WhatsApp agent as one of nine features, sold to Indian SMBs at ₹1,799–9,999 a month. We are agent-first like DM Champ; we add the CRM basics an SMB actually uses every day (contacts, assignment, a simple pipeline, follow-ups); and we do three things neither does: the agent queries the customer's **own** database or API through named read-only queries; **any AI provider on the customer's key**, with the real per-message cost and cache hit rate on screen; and **risk handled in the open** — warm-up caps, escalation as a tool the inbox enforces, spend caps, "the AI knows when to stop". INR for India, USD for export.
+
+Why this and not "build everything AiEngage has": one developer and no customers. Nine features built badly lose to their nine features with a support team behind them. The three things above are the only ground where a one-developer product wins a room, because they are the three things the competitors cannot copy cheaply — AiEngage's API points inward, DM Champ's margin *is* the opacity, and neither can produce an escalation transcript on demand. So we do not pitch against AiEngage as a CRM. We pitch as the agent that answers from their stock list, and connect to whatever CRM they already have — theirs included.
+
+### The differentiators as engineering commitments
+
+A differentiator is true when the named code exists, not when the deck says so. Two of the three are true today.
+
+**1. Live data — `queryLiveData`. NOT built; schema only.** `DataSource` (encrypted config for a read-only role) and `DataQuery` (`name`, `description`, JSON-Schema `parameters`, `$1`-placeholder `statement`, `maxRows`, `timeoutMs`) exist in `prisma/schema.prisma`. What makes the claim true, in order:
+- One tool in `lib/ai/tools.ts`, offered only when the org has active queries — an agent with nothing to look up must not see it (same rule as `bookMeeting` for an org with no calendar).
+- Arguments validated against the stored JSON Schema *before* anything reaches a driver. Failures go back to the model as a tool error, never as an exception.
+- Parameters **bound**, never interpolated: `pg` / `mysql2` placeholders for SQL, a path template for REST. The model never sees the statement, only the name and description.
+- Postgres runs inside `SET TRANSACTION READ ONLY` with `statement_timeout = timeoutMs`, regardless of what the role allows — the read-only role is the customer's promise, this is ours.
+- Result truncated at `maxRows`, and the model is told it was truncated.
+- Every call logged (`DataQueryCall`: query, args, row count, ms, error) so "what did the AI look up?" is answerable from the inbox thread. This is the same reasoning as `UsageRecord`.
+- Live Data screen: connection test, propose-a-query-from-a-description with mandatory human approval, and the call log.
+Two weeks. Nothing else in Phase 13 ships before it, because without it "better than both" is a sentence.
+
+**2. Cost transparency — true today.** `UsageRecord` per model call (prompt / cached / output tokens, USD, model, `byok`); `app/settings` shows spend and cache hit rate. Commitments: per-conversation cost in the chat thread header; a monthly export. Never round it into a "credit". The moment cost becomes a credit we are DM Champ, whose real rate ran 2× its headline because every tool call billed separately (`research/07`). We bill the customer per **visible reply** and absorb the tool calls.
+
+**3. Any provider, your key — true today.** `Organization.modelApiKeyEnc` + base URL + model override; any OpenAI-compatible endpoint; `byok` on every usage row. Commitments: per-agent model override (a cheap model for the FAQ agent, a stronger one for sales), and no model becomes the platform default until it passes the §11 eval — the first item on which is "does it call `alertHuman` when it should?"
+
+**4. The AI knows when to stop — true, with one gap.** `alertHuman` sets `HUMAN_ACTIVE` and `runAgentTurn` refuses to run against it; the imperative "calling a function is how anything actually happens" line is in the prompt and verified; `MAX_COST_USD_PER_CONVERSATION` and `dailyCostCapUsd` are enforced in `lib/ai/agent.ts`; WhatsApp sends are blocked at the derived warm-up cap in `lib/channels/whatsapp.ts`. The gap: the ban-risk disclosure at connect time is a paragraph not yet in the UI, and an escalation notifies nobody outside the inbox. Commitments: disclosure copy on the WhatsApp connect screen with an explicit acknowledgement; escalation notification to the assigned teammate (Telegram or email) in Phase 14.
+
+**On the food-contact transcript.** The line quoted in `PRODUCT-PLAN.md` §7 and seeded in `prisma/seed.ts` is real and it is **DM Champ's agent** ("Tia | ATC") speaking on the boss's `foundergrowth.ai` account. Our own verified result is narrower: on 14 Sep our model answered from seeded knowledge in the agent's voice and fired `alertHuman` correctly on a price request. Do not put the DM Champ line on our homepage as ours. Re-run the enquiry through our agent — the seeded agent carries the same rule — and use what it actually says.
+
+### The honest gap list vs AiEngage, sequenced
+
+What they have that we do not, in the order we close it. Weeks are one developer with AI assistance; Meta's and Google's clocks are theirs. Phase numbers continue `PRODUCT-PLAN.md` §8.
+
+**Phase 13 — live data executor (2 weeks).** Above. Ships first.
+
+**Phase 14 — win the demo (3 weeks).** Onboarding wizard: sign-up → URL → agent pre-filled from the crawl → connect → sandbox (1.5; the screens exist, the flow does not — today a new user assembles it by hand from Knowledge, Agents and Channels). Teammate assignment + escalation notifications (0.5). CSV contact import/export; a lead-score tag the agent sets from rules (0.5). Per-conversation cost in the thread; escalation rate and first-response time on the dashboard; ban-risk disclosure on the connect screen (0.5). After 14 we can walk into an office and demo on the prospect's own data.
+
+**Meta track — Meta's clock, ~1 week of code.** File Business Verification and App Review the week Phase 13 starts, if not already filed — nothing in this repo records that it was. On approval: official WhatsApp Cloud API adapter (carrier fees passed through), Instagram and Messenger on the same `ChannelAdapter` interface, and a **Meta Lead Ads webhook → contact + first WhatsApp message**. That last one is AiEngage's headline "automation journey", and it is a webhook. Until approval, QR is the WhatsApp story and it is sold with the disclosure.
+
+**Phase 15 — the agent grows up (4 weeks).** Email adapter with threading (1). Google Calendar OAuth + availability so `bookMeeting` writes an event instead of a `REMINDER` row — file Google verification at Phase 13 start (1.5). AI-composed follow-ups on their own prompt path, capped at two (0.5). Voice notes, images and PDFs via the utility model (0.5). Outbound webhooks — new lead, escalation, booking (0.5). Hand-written FAQs outranking crawled ones in `lib/knowledge/retrieve.ts`.
+
+**Phase 16 — the CRM basics (4 weeks).** A `Deal` with stages and a Kanban view (1.5) — small, and only now, because before 13–15 it is a worse pipeline than AiEngage's with nothing to set it apart. Razorpay payment link as an agent tool, quotes stay human (1). Public REST API and an MCP server over contacts, conversations and queries (1.5).
+
+**Not this year, and say so:** voice/calling (integrate Exotel or Twilio when a client pays for it); a native mobile app (a PWA with push is the honest step); SMS in India (DLT-registered templates, no sales value); white-label reselling (6–10 weeks, only after paying customers).
+
+**Total: 13 + 14 + 15 + 16 ≈ 13 weeks of code** to parity where it matters. The Meta track runs alongside on Meta's calendar. Test the Phase 16 list against the first five prospects' actual questions before building it — see `PRODUCT-PLAN.md` §11.
+
+### Pricing direction
+
+INR first. Meter AI replies — they cost us money — not contacts or seats, which do not. Undercut AiEngage's Solo and Business on the agent while stating we lack their pipeline, payments, calling and app: **₹1,499 / ₹3,999 / ₹7,999** a month for 1,000 / 5,000 / 20,000 visible replies, overage ₹0.50 → ₹0.30, BYOK unmetered on every tier, 14-day trial without a card. Export at **$29 / $79 / $149** — a regional price, not a conversion.
+
+The floor: $0.000497 per model call measured with 60% cache; ~2 calls per visible reply → **~$0.001 per reply** on the cheap-model default, **~$0.005** Sonnet-class. At ₹88/USD the Business tier at full allowance is 22% cost on the cheap model and **110%** on Sonnet-class — so the platform default model is cheap-to-mid (the §11 eval decides), and Sonnet-class is BYOK. Official WhatsApp carrier fees pass through at cost from 1 Oct 2026. Full tables in `research/10`; the open decisions are in `PRODUCT-PLAN.md` §11.

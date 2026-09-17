@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { saveAgent } from "@/app/agents/actions";
+import { saveAgent } from "@/app/(app)/agents/actions";
 import Notice from "@/components/ui/Notice";
 import SubmitButton from "@/components/ui/SubmitButton";
 

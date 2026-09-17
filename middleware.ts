@@ -31,7 +31,13 @@ const PUBLIC_PREFIXES = [
   "/api/health",
 ];
 
+// EXACT matches only. "/" is the public marketing homepage, and it can never
+// join PUBLIC_PREFIXES: every pathname starts with "/", so a prefix match on it
+// would make the entire app public in one line.
+const PUBLIC_EXACT = new Set(["/"]);
+
 function isPublic(pathname: string): boolean {
+  if (PUBLIC_EXACT.has(pathname)) return true;
   return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
@@ -59,9 +65,10 @@ export async function middleware(req: NextRequest) {
   const signedIn = await hasValidSession(req);
 
   if (isPublic(pathname)) {
-    // An already-signed-in user landing on the auth pages goes to the app.
+    // An already-signed-in user landing on the auth pages goes to the app —
+    // the dashboard, not "/", which is the marketing page they have no need of.
     if (signedIn && (pathname === "/login" || pathname === "/signup")) {
-      return NextResponse.redirect(new URL("/", req.url));
+      return NextResponse.redirect(new URL("/dashboard", req.url));
     }
     return NextResponse.next();
   }
@@ -78,7 +85,9 @@ export async function middleware(req: NextRequest) {
   const url = new URL("/login", req.url);
   // Path only — never the query string, which can carry an email or a token and
   // would then sit in our own redirect URL, in history and in the referrer.
-  if (pathname !== "/") url.searchParams.set("next", pathname);
+  // ("/" itself never reaches here any more — it is public — so every pathname
+  // at this point is a real app route worth returning to.)
+  url.searchParams.set("next", pathname);
   return NextResponse.redirect(url);
 }
 

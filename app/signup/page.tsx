@@ -58,7 +58,8 @@ export default function SignupPage() {
       }
 
       // Full page load so the server layout reads the new session cookie.
-      window.location.assign("/");
+      // /dashboard, not "/" — the root is the public marketing page.
+      window.location.assign("/dashboard");
     } catch (err) {
       setErrors({ form: err instanceof Error ? err.message : "Network error. Check your connection." });
     } finally {

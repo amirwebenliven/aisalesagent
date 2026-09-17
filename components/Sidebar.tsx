@@ -24,7 +24,7 @@ export default function Sidebar({
   // 404'd — a dead link in a nav reads as a broken product, not a roadmap.
   // Add each back the day its page lands.
   const groups: Group[] = [
-    { items: [{ href: "/", label: "Dashboard" }] },
+    { items: [{ href: "/dashboard", label: "Dashboard" }] },
     {
       title: "Engage",
       items: [{ href: "/chats", label: "Chats", badge: openChats || undefined }],
@@ -49,8 +49,9 @@ export default function Sidebar({
     },
   ];
 
-  const isActive = (href: string) =>
-    href === "/" ? path === "/" : path === href || path.startsWith(`${href}/`);
+  // No special case for "/" any more: the dashboard lives at /dashboard and "/"
+  // is the public marketing page, which this sidebar never renders on.
+  const isActive = (href: string) => path === href || path.startsWith(`${href}/`);
 
   return (
     <aside className="sidebar">

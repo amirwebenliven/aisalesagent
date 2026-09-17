@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState, useTransition } from "react";
-import { deleteFaq, updateFaq } from "@/app/knowledge/actions";
+import { deleteFaq, updateFaq } from "@/app/(app)/knowledge/actions";
 import type { ActionState } from "@/components/ui/action-state";
 import Notice from "@/components/ui/Notice";
 import SubmitButton from "@/components/ui/SubmitButton";

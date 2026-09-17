@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { setBotExcluded } from "@/app/contacts/actions";
+import { setBotExcluded } from "@/app/(app)/contacts/actions";
 import type { ActionState } from "@/components/ui/action-state";
 import Notice from "@/components/ui/Notice";
 

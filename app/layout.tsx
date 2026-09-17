@@ -1,8 +1,5 @@
 import type { Metadata } from "next";
 import { Instrument_Sans, IBM_Plex_Mono } from "next/font/google";
-import Sidebar from "@/components/Sidebar";
-import { prisma } from "@/lib/db";
-import { currentOrg, currentUserEmail, creditBalance } from "@/lib/tenant";
 import "./globals.css";
 
 const sans = Instrument_Sans({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
@@ -18,41 +15,21 @@ export const metadata: Metadata = {
   description: "Omnichannel AI sales agent",
 };
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  let shell: { org: string; email: string; credits: number; open: number } | null = null;
-
-  try {
-    const org = await currentOrg();
-    const [email, credits, open] = await Promise.all([
-      currentUserEmail(org.id),
-      creditBalance(org.id),
-      prisma.conversation.count({ where: { organizationId: org.id, state: { not: "CLOSED" } } }),
-    ]);
-    shell = { org: org.name, email, credits, open };
-  } catch {
-    // No session (or no database yet). Fall through WITHOUT the sidebar —
-    // never instead of {children}. Rendering a placeholder here instead of the
-    // page is what made /login and /signup unreachable in production: the only
-    // pages that can fix a missing session were hidden behind the missing
-    // session. The chrome is optional; the page never is.
-  }
-
+/**
+ * The root layout is deliberately minimal: fonts, global CSS, nothing else.
+ *
+ * It used to look up the session and render the sidebar shell for every route.
+ * That coupled the public marketing page and the auth pages to a database
+ * read they never needed, and the try/catch that hid the failure is what once
+ * made /login unreachable. The shell now lives in app/(app)/layout.tsx, where
+ * every route beneath it genuinely requires a session; the marketing chrome
+ * lives in app/(marketing)/layout.tsx. Route groups keep the URLs unchanged.
+ */
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${sans.variable} ${mono.variable}`}>
       <body style={{ fontFamily: "var(--font-sans), ui-sans-serif, system-ui, sans-serif" }}>
-        {shell ? (
-          <div className="shell">
-            <Sidebar
-              orgName={shell.org}
-              userEmail={shell.email}
-              credits={shell.credits}
-              openChats={shell.open}
-            />
-            <div className="main">{children}</div>
-          </div>
-        ) : (
-          children
-        )}
+        {children}
       </body>
     </html>
   );

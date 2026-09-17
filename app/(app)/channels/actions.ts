@@ -69,7 +69,7 @@ export async function connectTelegramChannel(input: {
     });
 
     revalidatePath("/channels");
-    revalidatePath("/");
+    revalidatePath("/dashboard");
 
     return {
       ok: true,
@@ -107,7 +107,7 @@ export async function pauseChannel(channelId: string): Promise<ActionState> {
   }
 
   revalidatePath("/channels");
-  revalidatePath("/");
+  revalidatePath("/dashboard");
   return { ok: true, message: "Paused. Inbound messages are still recorded; the AI will not answer them." };
 }
 
@@ -133,7 +133,7 @@ export async function resumeChannel(channelId: string): Promise<ActionState> {
   }
 
   revalidatePath("/channels");
-  revalidatePath("/");
+  revalidatePath("/dashboard");
   return { ok: true, message: "Live again." };
 }
 

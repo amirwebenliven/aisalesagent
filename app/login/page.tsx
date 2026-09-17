@@ -12,9 +12,14 @@ type Errors = { form?: string; email?: string; password?: string };
  * send our user somewhere that looks like us and asks for their password again.
  */
 function safeNext(): string {
-  if (typeof window === "undefined") return "/";
+  // "/dashboard", never "/": the root is the public marketing page now, and a
+  // person who has just signed in should land inside the product. That includes
+  // an explicit ?next=/ — middleware never writes one, but an old bookmark might.
+  if (typeof window === "undefined") return "/dashboard";
   const raw = new URLSearchParams(window.location.search).get("next");
-  if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/\\")) return "/";
+  if (!raw || raw === "/" || !raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/\\")) {
+    return "/dashboard";
+  }
   return raw;
 }
 
