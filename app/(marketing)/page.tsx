@@ -4,18 +4,22 @@ import LiveDemo from "@/components/marketing/LiveDemo";
 import HowItWorks from "@/components/marketing/HowItWorks";
 import Channels from "@/components/marketing/Channels";
 import WhyUs from "@/components/marketing/WhyUs";
-import Compare from "@/components/marketing/Compare";
 import PricingPreview from "@/components/marketing/PricingPreview";
 import Faq from "@/components/marketing/Faq";
 import ClosingCta from "@/components/marketing/ClosingCta";
 
 export const metadata: Metadata = {
-  title: "Agent Platform — an AI sales agent that knows when to stop",
+  title: "Agent Platform — the AI sales agent that answers every lead and knows when to hand over",
   description:
-    "Answer every lead in seconds on Telegram, WhatsApp and your website, from your own knowledge base — " +
-    "with the real cost per reply on screen, any AI provider, and a human handover built in.",
+    "Reply to every customer in seconds on WhatsApp, Telegram and your website, from what your business actually knows. " +
+    "Captures the lead, books the meeting, hands the hard ones to your team. Free for a month, no card.",
 };
 
+/**
+ * The public homepage promotes this product and nothing else: no competitor
+ * names, no comparison table (CLAUDE.md §16). The section numbers run in
+ * order; renumber the Section `n` props if one is added or removed.
+ */
 export default function HomePage() {
   return (
     <main>
@@ -24,7 +28,6 @@ export default function HomePage() {
       <HowItWorks />
       <Channels />
       <WhyUs />
-      <Compare />
       <PricingPreview />
       <Faq />
       <ClosingCta />

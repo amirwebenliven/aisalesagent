@@ -20,6 +20,7 @@
 | `08-ai-provider-costs.md` | Would ChatGPT / Gemini / a cheap model make building cheaper? (model cost is a rounding error) |
 | `09-open-source-options.md` | Chatwoot, Chaskiq and the licence map — what can legally be forked and resold |
 | `10-competitors-aiengage-vs-dmchamp.md` | Three-way comparison after AiEngage visited the office (Sep 2026); INR pricing proposal |
+| `11-dmchamp-shopify-live-data-choosemyride.md` | **Meeting brief (19 Sep 2026):** how a client's Shopify store (choosemyride.ae) gets live stock/price/order answers through DM Champ — MCP server + custom function, click by click; verified in the agency account |
 | `site/index.html` | The nine research pages as a linked static site; `pages/` holds the published-artifact variants |
 
 ---

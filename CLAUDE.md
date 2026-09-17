@@ -442,6 +442,46 @@ What they have that we do not, in the order we close it. Weeks are one developer
 
 ### Pricing direction
 
-INR first. Meter AI replies — they cost us money — not contacts or seats, which do not. Undercut AiEngage's Solo and Business on the agent while stating we lack their pipeline, payments, calling and app: **₹1,499 / ₹3,999 / ₹7,999** a month for 1,000 / 5,000 / 20,000 visible replies, overage ₹0.50 → ₹0.30, BYOK unmetered on every tier, 14-day trial without a card. Export at **$29 / $79 / $149** — a regional price, not a conversion.
+INR first. Meter AI replies — they cost us money — not contacts or seats, which do not. Undercut AiEngage's Solo and Business on the agent while stating we lack their pipeline, payments, calling and app: **₹1,499 / ₹3,999 / ₹7,999** a month for 1,000 / 5,000 / 20,000 visible replies, overage ₹0.50 → ₹0.30, BYOK unmetered on every tier, a **free month** without a card (was 14 days; changed 18 Sep — §16). Export at **$29 / $79 / $149** — a regional price, not a conversion.
 
 The floor: $0.000497 per model call measured with 60% cache; ~2 calls per visible reply → **~$0.001 per reply** on the cheap-model default, **~$0.005** Sonnet-class. At ₹88/USD the Business tier at full allowance is 22% cost on the cheap model and **110%** on Sonnet-class — so the platform default model is cheap-to-mid (the §11 eval decides), and Sonnet-class is BYOK. Official WhatsApp carrier fees pass through at cost from 1 Oct 2026. Full tables in `research/10`; the open decisions are in `PRODUCT-PLAN.md` §11.
+
+## 16. Go-to-market, the offer, and the super admin (decided 18 Sep 2026)
+
+The boss's decisions after reviewing the first homepage. They are the plan; **none of the billing machinery is built** — where a sentence below describes behaviour, it describes what Phase 17 builds, and the marketing copy must not claim it is automatic until it is.
+
+### What the public site says — and does not
+
+- **Promote us, never them.** No competitor names and no comparison table on the homepage or any public page. The three-way analysis stays in `research/10` as an internal sales aid. The `Compare` section, its CSS and every `#compare` link were removed on 18 Sep.
+- **The demo is an illustration, and says so.** The homepage conversation is a written example — a fictional furniture studio, a fictional customer — that shows the agent's *real* behaviours: an answer from the knowledge base, `captureContact`, `bookMeeting`, `scheduleFollowUp`, and an `alertHuman` handover. The caption calls it an example. It replaced the Al Taher replay, which was a real transcript but read as a testimonial for a business that is not our customer and named a competitor's client on our homepage. The replay lives on in `scripts/replay-demo.ts` as an eval, which is where a real transcript belongs.
+- **No fabricated testimonials or reviews.** An invented customer quote presented as real is deceptive advertising; we do not publish one under any label. A testimonials block goes up when the first paying customers agree to be quoted, with their names.
+- **Tone:** commercial, direct, benefit-first. Channel states stay honest (live / built / on the roadmap) — that is accuracy, not the self-deprecating lede the first version had.
+
+### The offer
+
+- **A free month.** Every sign-up gets 30 days with AI credits included, no card. Supersedes the 14-day trial in §15.
+- **Credits at sign-up.** Every new organisation receives a credit allowance funded by the platform key (the OpenRouter development key today, the purchased MeshAPI key later). A credit is **one visible reply** — never a fraction of a model call (§15 #2 still holds; the customer still sees the dollar cost of every reply).
+- **Monthly renewal.** Plans renew monthly. When the trial or the paid period ends without renewal, the agent **pauses**: channels stay connected, data stays, nothing is deleted; it resumes on renewal.
+- **Yearly discount.** Pay yearly, get two months free (yearly = 10 × monthly). Placeholder until the boss sets the number.
+- **Referral / affiliate.** Every customer has a referral link (`/signup?ref=<code>`). When a business that signed up through it buys any paid plan, the referrer gets **one month free**. Attribution is stored on the referred organisation at sign-up; the reward is granted on that organisation's first payment, once.
+- **Tiers** as §15: ₹1,499 / ₹3,999 / ₹7,999 for 1,000 / 5,000 / 20,000 replies; export $29 / $79 / $149. The homepage shows these from 18 Sep (it showed 1,999 / 5,999 / 14,999 before — a drift, now fixed).
+
+### The super admin
+
+The boss's account. A **platform-level** role, distinct from the per-organisation `OWNER` / `ADMIN` / `MEMBER` in `Membership.role`. It sees every organisation — sign-up date, owner, plan, trial end, credit balance, usage from `UsageRecord`, purchases — and can grant or deduct credits, extend a trial, record a manual payment, and activate or deactivate an organisation.
+
+Implementation sketch, so the first version does not invent its own auth:
+
+- `User.isPlatformAdmin Boolean @default(false)`, set only by seed or SQL — **no route may set it**.
+- An `app/(admin)/` route group with its own layout that returns 404 (not 403 — do not confirm the URL exists) unless the session user is a platform admin. `lib/tenant.ts` stays untouched; the admin group reads `prisma` directly, because this is the one legitimate cross-tenant reader in the codebase, and every mutation writes an `AdminAction` audit row (who, what, which org, before/after).
+- `Organization.isActive` already gates `currentOrg()`; deactivation is that flag. Until the screen exists, the boss does it with one SQL statement, documented in `scripts/` when first needed.
+
+### Data model for Phase 17
+
+`Plan` (code, name, priceInrMonthly, priceInrYearly, priceUsdMonthly, includedReplies, seats, agents) · `Subscription` (organizationId unique, planId, status `TRIALING | ACTIVE | PAST_DUE | PAUSED | CANCELLED`, interval `MONTHLY | YEARLY`, trialEndsAt, currentPeriodEnd) · `CreditLedger` (organizationId, delta, balanceAfter, reason `SIGNUP_GRANT | PLAN_RENEWAL | ADMIN_GRANT | REFERRAL_REWARD | USAGE`, ref, byUserId) · `Purchase` (organizationId, amountInr, provider `RAZORPAY | MANUAL`, providerRef, status, paidAt) · `Organization.referralCode` unique + `Organization.referredByOrgId` · `ReferralReward` (referrerOrgId, referredOrgId, grantedAt — one per referred org).
+
+**One enforcement point:** `lib/ai/agent.ts`, before the model call — subscription `TRIALING` or `ACTIVE` and credit balance > 0; otherwise no reply, a `PAUSED_BILLING` system note on the conversation, and one notification to the owner. Not in the channel adapters, not in the worker — the same rule as the spend caps, for the same reason.
+
+### Phase 17 — Billing, credits, referral, super admin (2 weeks)
+
+Sequenced after Phase 13 or 14 at the boss's call; nothing here matters before the first customer who is not a friend. Razorpay checkout for INR; "mark paid" for everything else; the super-admin screen first, because it is what makes a manual trial period workable on day one.

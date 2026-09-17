@@ -7,28 +7,28 @@ const STEPS: {
   fine?: string;
 }[] = [
   {
-    title: "Connect",
+    title: "Connect in minutes",
     body:
-      "Paste your website URL. Connect Telegram with a bot token, WhatsApp by scanning a QR code, and your own site with one script tag.",
+      "Paste your website address. Connect Telegram with a bot token, WhatsApp by scanning a QR code, and your own site with one script tag.",
     fine: "No Meta approval needed for any of the three.",
   },
   {
-    title: "The agent learns",
+    title: "It learns your business",
     body:
-      "We crawl your site and turn it into question-and-answer pairs your team can read, edit and add to — pricing rules, lead times, the things that were never on the website.",
+      "We read your site and turn it into clear question-and-answer pairs your team can review, edit and add to — pricing rules, lead times, the things that were never written down.",
     fine: "The knowledge base is a snapshot, not a live link. When your site changes, press Refresh.",
   },
   {
     title: "It answers and acts",
     body:
-      "Every reply is grounded in that knowledge base and your written rules. When something needs to happen, the agent calls a function — and every call is logged with its cost.",
-    tools: ["alertHuman", "captureContact", "tagContact", "scheduleFollowUp", "bookMeeting"],
+      "Every reply is grounded in that knowledge and your written rules. When something needs to happen — save a lead, book a call, set a reminder — the agent calls a function, and every call is logged with its cost.",
+    tools: ["captureContact", "bookMeeting", "scheduleFollowUp", "tagContact", "alertHuman"],
   },
   {
-    title: "You take over when it matters",
+    title: "You step in when it matters",
     body:
       "A handover moves the thread to your inbox and pauses the AI. Reply in the same conversation, on the same channel, and hand it back when you are done.",
-    fine: "Escalation is a real function call, not a sentence — saying “I’ll pass this on” does not pass it on.",
+    fine: "Escalation is a real function call, not a sentence — the AI saying “I’ll pass this on” is not the same as passing it on, and we built it so it cannot fake it.",
   },
 ];
 
@@ -38,8 +38,8 @@ export default function HowItWorks() {
       id="how"
       n="02"
       eyebrow="How it works"
-      title="From a URL to a working agent in an afternoon."
-      lede="Four steps. The first two are yours, the third is the agent’s, and the fourth is the reason it is safe to let it talk to your customers."
+      title="From your website to a working sales agent in an afternoon."
+      lede="Four steps. The first two are yours, the third is the agent’s, and the fourth is what makes it safe to let it talk to your customers."
     >
       <ol className="mk-steps">
         {STEPS.map((s, i) => (

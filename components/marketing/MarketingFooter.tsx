@@ -5,7 +5,7 @@ import { IconGitHub } from "./Icons";
 /**
  * Deep footer. Legal pages do not exist yet, so they are rendered as labelled
  * placeholders rather than links to nowhere — a dead link in a footer reads as
- * an abandoned product.
+ * an abandoned product. No competitor links anywhere (CLAUDE.md §16).
  */
 export default function MarketingFooter() {
   return (
@@ -18,7 +18,7 @@ export default function MarketingFooter() {
               Agent Platform
             </span>
             <p className="blurb">
-              An AI sales agent that answers from your own knowledge, shows you what every reply
+              The AI sales agent that answers from your own knowledge, shows you what every reply
               cost, and knows when to hand over to a person.
             </p>
             <p style={{ marginTop: 12 }}>
@@ -32,7 +32,7 @@ export default function MarketingFooter() {
           <div>
             <h4>Product</h4>
             <ul>
-              <li><a href="#demo">Live demo</a></li>
+              <li><a href="#demo">See it work</a></li>
               <li><a href="#how">How it works</a></li>
               <li><a href="#channels">Channels</a></li>
               <li><a href="#why">Why this one</a></li>
@@ -41,10 +41,10 @@ export default function MarketingFooter() {
           </div>
 
           <div>
-            <h4>Compare</h4>
+            <h4>Get started</h4>
             <ul>
-              <li><a href="#compare">vs DM Champ</a></li>
-              <li><a href="#compare">vs AiEngage</a></li>
+              <li><Link href="/signup">Free month</Link></li>
+              <li><a href="#referral">Refer &amp; earn</a></li>
               <li><a href="#faq">Questions</a></li>
             </ul>
           </div>
@@ -70,7 +70,7 @@ export default function MarketingFooter() {
 
         <div className="mk-footer-bottom">
           <span>© 2026 Agent Platform. Built in India, priced in rupees, exported in dollars.</span>
-          <span className="mono">Channel status and pricing on this page as of 17 Sep 2026.</span>
+          <span className="mono">Channel status and pricing on this page as of 18 Sep 2026.</span>
         </div>
       </div>
     </footer>

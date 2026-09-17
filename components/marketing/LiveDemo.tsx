@@ -1,102 +1,109 @@
 /**
- * The centrepiece: a REAL conversation produced by THIS product.
+ * The centrepiece: one annotated conversation that shows what the agent does.
  *
- * On 18 Sep 2026 the same four customer messages that a real Al Taher Chemicals
- * prospect sent in August were replayed through our agent (scripts/replay-demo.ts:
- * the seeded "Tia | ATC" workspace, its eight crawled FAQs, model minimax-m3 via
- * OpenRouter, the live tool registry). What is below is that run, verbatim,
- * including the turn where the agent did not understand a one-word answer.
+ * It is an EXAMPLE, and the caption says so. "Aster & Oak" is a fictional
+ * made-to-order furniture studio and "Priya" is not a real customer; the
+ * exchange was written to walk through the agent's real behaviours in the
+ * order a sale actually happens — answer from the knowledge base, qualify,
+ * capture the lead, book the meeting, schedule the follow-up, and hand over
+ * when a question is outside its rules. Every function named here exists in
+ * lib/ai/tools.ts today. Nothing is presented as a customer transcript, and no
+ * competitor or their client appears on this page (CLAUDE.md §16).
  *
- * It replaced a transcript from a competitor's product that we had captured in
- * August. That one read well, but it was not ours, and a homepage that shows
- * someone else's model as its centrepiece is a lie of placement even with an
- * honest caption. This is ours. Token counts, cache hits and cost are the
- * measured figures from that run, not typed in.
- *
- * Layout is one CSS grid — bubbles in column 1, notes in column 2 — so each
- * note sits on the same row as the message it explains. Interleaving them in
- * DOM order is what makes the phone layout (single column) read correctly
- * without any JavaScript.
+ * Layout is one CSS grid — bubbles and events in column 1, notes in column 2 —
+ * so each note sits on the row of the item it explains. DOM order inside a
+ * turn is bubble → events → note: the note is auto-placed beside the LAST
+ * column-1 item before it, so a note about an action sits beside the action.
  */
 
+type Tone = "ok" | "warn";
 type Note = { title: string; body: string; key?: boolean };
+type Tool = { name: string; detail: string; tone: Tone };
 type Turn = {
   from: "ai" | "customer";
   text: string;
+  /** Shown under an AI bubble: what it drew on and how long it took (typical). */
+  stamp?: string;
+  tools?: Tool[];
   note?: Note;
-  /** Measured on the run that produced this reply. Only on AI turns. */
-  meta?: { promptTokens: number; cachedTokens: number; outputTokens: number };
-  /** A function the model called in the same turn as this reply. */
-  tool?: { name: string; reason: string };
 };
 
 const TURNS: Turn[] = [
-  { from: "customer", text: "What kind of service are you providing" },
+  {
+    from: "customer",
+    text: "Hi! Do you make a 6-seater dining table in walnut? Need it before Diwali 🙏",
+  },
   {
     from: "ai",
     text:
-      "Hi Rajesh 👋\n\nAl Taher Chemicals supplies industrial chemistry for metal finishing — mainly:\n\n" +
-      "- Electroplating chemicals (nickel, chrome, zinc, tin, gold, rhodium, palladium)\n" +
-      "- Electroless nickel (low/mid/high phosphorous)\n" +
-      "- Metal stripping, pickling & passivation\n" +
-      "- Abrasives and stainless steel cleaners\n\n" +
-      "We work with defence, aviation, marine, fasteners, heavy machinery and similar sectors across the UAE and GCC.",
+      "Hi Priya 👋 Yes — our Solstice dining table comes in solid walnut and seats six (180 × 90 cm) or eight (220 × 100 cm). The 6-seater starts at ₹68,500.\n\n" +
+      "Lead time right now is 4–5 weeks, so an order this week lands well before Diwali. Would you like it with the matching bench or chairs?",
+    stamp: "answered from 3 knowledge entries · 2.4 s",
     note: {
-      title: "Answered from the knowledge base",
-      body: "Every product family here came from eight FAQs the crawler generated off the company’s own website. Nobody wrote this list for the demo.",
-    },
-    meta: { promptTokens: 2148, cachedTokens: 128, outputTokens: 163 },
-  },
-  {
-    from: "ai",
-    text: "What are you working on? Happy to point you to the right product family if you tell me the substrate and finish you need.",
-    note: {
-      title: "Qualifying question",
-      body: "It asks what they are building before it pitches anything — the flow says one question at a time.",
+      title: "Answers from your knowledge base",
+      body: "Sizes, price and lead time came from the studio’s own website, turned into question-and-answer pairs the team reviewed. It does not invent products, prices or dates.",
     },
   },
-  { from: "customer", text: "Elegant" },
-  {
-    from: "ai",
-    text: "No worries, Rajesh. Whenever you're ready, just let me know what you're trying to plate or finish and I'll point you in the right direction.",
-    note: {
-      title: "The weak turn — left in",
-      body: "One word, and the agent did not infer “decorative finish” from it. It asked again rather than guess. We would rather show you this than trim it.",
-    },
-    meta: { promptTokens: 2290, cachedTokens: 2048, outputTokens: 33 },
-  },
-  { from: "customer", text: "Yes yes" },
+  { from: "customer", text: "Chairs. Can you do a custom length, around 200 cm?" },
   {
     from: "ai",
     text:
-      "Great 😊\n\nSo tell me — what are you working on? For example:\n\n" +
-      "- What substrate (steel, copper, brass, plastic…)?\n" +
-      "- What finish do you want (nickel, chrome, zinc, gold…)?\n" +
-      "- Which industry is it for?\n\n" +
-      "Once I know that, I can match it to the right chemistry.",
+      "We can — custom lengths between 160 and 240 cm are made to order. A 200 cm walnut top comes to about ₹74,000, and the Ridge chairs are ₹9,800 each.\n\n" +
+      "Shall I have our designer send you a proper quote and a swatch pack? I just need your email and the delivery pincode.",
+    stamp: "2.1 s",
     note: {
-      title: "Cache hit: 99%",
-      body: "2,304 of 2,334 input tokens were served from cache. The instruction prefix never changes between turns, which is why a reply costs a fraction of a cent.",
+      title: "Qualifies before it sells",
+      body: "One question at a time, exactly as the conversation flow you write tells it to. It asks for what moves the sale forward — and nothing more.",
     },
-    meta: { promptTokens: 2334, cachedTokens: 2304, outputTokens: 69 },
+  },
+  { from: "customer", text: "priya.n@example.com — 560034. Also, do you offer EMI?" },
+  {
+    from: "ai",
+    text:
+      "Saved, thank you 🙂 Yes — 3, 6 and 9-month EMI on all major cards at checkout, with no extra cost on the 3-month plan.\n\n" +
+      "Want a quick 20-minute call with our designer Ananya to finalise the size and finish? She has Tuesday 4:30 pm or Wednesday 11:00 am.",
+    stamp: "2.6 s",
+    tools: [
+      { name: "captureContact", detail: "email · pincode 560034 · tags: dining, walnut, custom-size", tone: "ok" },
+    ],
+    note: {
+      title: "Saves the lead as it goes",
+      body: "Email and pincode go straight onto the contact, tagged for your pipeline — a real function call, not a form the customer has to fill in.",
+    },
+  },
+  { from: "customer", text: "Tuesday works" },
+  {
+    from: "ai",
+    text: "Done — Tuesday 4:30 pm with Ananya. The calendar invite is on its way, and the swatch pack ships tomorrow. Anything else I can help with?",
+    stamp: "1.8 s",
+    tools: [
+      { name: "bookMeeting", detail: "Tue 16:30 · Ananya · invite sent", tone: "ok" },
+      { name: "scheduleFollowUp", detail: "Wed 10:00 · “Did the swatch pack go out?”", tone: "ok" },
+    ],
+    note: {
+      title: "Books it, then remembers",
+      body: "The meeting and the follow-up are both logged actions you can see in the thread. Nothing depends on someone remembering to check.",
+    },
   },
   {
     from: "customer",
-    text: "I am looking for Chrome plating in utensils that normally we are using in cooking. Also we need to check plating for car accessories",
+    text: "Actually — the table I bought from you in 2024 has a crack down the top. What do you do about that?",
   },
   {
     from: "ai",
-    text: "Rajesh, the cooking utensils part is a food-contact application — I don't want to guess on that one, so I'll pass it to our team to advise properly.",
+    text: "I’m really sorry to hear that, Priya — that needs a person, not a bot. I’ve passed it to our team with your details, and someone will message you here within the hour.",
+    stamp: "1.7 s",
+    tools: [
+      {
+        name: "alertHuman",
+        detail: "Warranty claim: cracked top on a 2024 order. Customer also has a ₹1.3L quote in progress. AI paused.",
+        tone: "warn",
+      },
+    ],
     note: {
       key: true,
-      title: "Declined to guess — and actually escalated",
-      body: "Its rules say never guess chemistry for food contact. It said so, and in the same turn it called alertHuman with the reason. The thread moved to the inbox; the AI will not reply again until a person hands it back.",
-    },
-    meta: { promptTokens: 2437, cachedTokens: 2304, outputTokens: 152 },
-    tool: {
-      name: "alertHuman",
-      reason:
-        "Food-contact chrome plating enquiry for cooking utensils — needs proper technical guidance on food-safe chemistry. Also interested in chrome plating for car accessories.",
+      title: "Knows when to stop",
+      body: "A complaint is outside its rules, so it hands over — a real function call that pauses the AI and lands the thread in your inbox with the reason. Never a reassuring sentence that goes nowhere.",
     },
   },
 ];
@@ -108,53 +115,54 @@ export default function LiveDemo() {
         <div className="mk-section-head">
           <p className="mk-eyebrow">
             <span className="n">01</span>
-            Live demo
+            See it work
           </p>
-          <h2>A real conversation, not a mockup.</h2>
+          <h2>One conversation. Answered, qualified, booked — and handed over at the right moment.</h2>
           <p className="mk-lede">
-            Four messages a real prospect sent an electroplating supplier, replayed through this
-            product’s agent on 18 September 2026 with nothing but the supplier’s website as
-            knowledge. Reproduced verbatim — including the turn it fumbled. Read the last message:
-            the agent recognised a question it should not answer, said so, and handed the lead to a
-            human with a function call, not a sentence.
+            Follow a customer from “do you make this?” to a booked design call in five messages, and
+            watch what the agent does behind each reply. Then read the last message: when the
+            question turns into a complaint, it stops and brings in your team.
           </p>
         </div>
 
         <div className="dm">
           <div className="dm-head">
             <div className="dm-who">
-              <span className="dm-avatar" aria-hidden="true">AT</span>
+              <span className="dm-avatar" aria-hidden="true">A</span>
               <span>
-                <span className="nm">Tia · Al Taher Chemicals</span>
+                <span className="nm">Aster &amp; Oak · Studio assistant</span>
                 <br />
-                <span className="ch">This product’s agent · demo workspace</span>
+                <span className="ch">WhatsApp · example conversation</span>
               </span>
             </div>
             <span className="pill warn">
               <span className="dot" />
-              human
+              with your team
             </span>
           </div>
           <div className="dm-rail-head">
-            <p className="mk-eyebrow">What happened</p>
+            <p className="mk-eyebrow">What the agent did</p>
           </div>
+
+          <div className="dm-date">Today · 9:42 pm</div>
 
           {TURNS.map((t, i) => (
             <Turn key={i} turn={t} />
           ))}
 
           <div className="dm-foot">
-            <div className="fake-input">Your team replies here — the AI is paused</div>
+            <div className="fake-input">Your team replies here — the AI is paused on this thread</div>
             <span className="btn" aria-hidden="true">Send</span>
           </div>
         </div>
 
         <p className="dm-caption">
-          Transcript reproduced verbatim, including the customer’s spelling. Customer details are
-          from the demo workspace; timestamps removed. Token counts, cache hits and the{" "}
-          <span className="mono">alertHuman</span> call are the measured record of that run — total
-          cost for all four replies was <span className="mono">$0.0014</span>. No line was written
-          for this page.
+          Example conversation. Aster &amp; Oak is a fictional furniture studio and Priya is not a
+          real customer — the exchange was written to show how the agent behaves. The functions
+          shown (<span className="mono">captureContact</span>, <span className="mono">bookMeeting</span>,{" "}
+          <span className="mono">scheduleFollowUp</span>, <span className="mono">alertHuman</span>) are
+          the ones it has today, and each is logged in your inbox with its cost. Response times are
+          typical.
         </p>
       </div>
     </section>
@@ -163,41 +171,27 @@ export default function LiveDemo() {
 
 function Turn({ turn }: { turn: Turn }) {
   const out = turn.from === "ai";
-  const m = turn.meta;
-  const cachePct = m && m.promptTokens ? Math.round((m.cachedTokens / m.promptTokens) * 100) : null;
   return (
     <>
       <div className={`dm-msg ${out ? "out" : "in"}`}>
-        {/* pre-line: the model writes real paragraphs and bullet lists, and a
-            chat bubble that collapses them into one run of text misrepresents
-            what the customer actually saw. */}
+        {/* pre-line: the agent writes real paragraphs, and a bubble that
+            collapses them into one run of text misrepresents what the
+            customer sees. */}
         <div className={`dm-bubble ${out ? "out" : "in"}`} style={{ whiteSpace: "pre-line" }}>
           {turn.text}
-          {out ? (
-            <span className="stamp">
-              AI
-              {m ? ` · ${m.promptTokens.toLocaleString()} in${cachePct !== null ? ` (${cachePct}% cached)` : ""} · ${m.outputTokens} out` : ""}
-            </span>
-          ) : null}
+          {out ? <span className="stamp">AI{turn.stamp ? ` · ${turn.stamp}` : ""}</span> : null}
         </div>
       </div>
-      {/* Order matters for the grid: the note (column 2) is auto-placed on the
-          row of the column-1 item before it, so it must follow the bubble
-          directly to sit beside it. The event is a column-1 grid child in its
-          own right — inside .dm-msg it would join the flex row and squash the
-          bubble sideways — so it comes last and drops onto the next row. */}
+      {turn.tools?.map((tool) => (
+        <div key={tool.name} className={`dm-event ${tool.tone}`}>
+          <strong>{tool.name}</strong>
+          <span className="mono">{tool.detail}</span>
+        </div>
+      ))}
       {turn.note ? (
         <div className={`dm-note${turn.note.key ? " key" : ""}`}>
           <span className="t">{turn.note.title}</span>
           {turn.note.body}
-        </div>
-      ) : null}
-      {turn.tool ? (
-        <div className="dm-event">
-          <strong>Function call in the same turn</strong>
-          <span className="mono">
-            {turn.tool.name}(reason: “{turn.tool.reason}”) · AI paused
-          </span>
         </div>
       ) : null}
     </>

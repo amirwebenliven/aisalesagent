@@ -6,15 +6,15 @@ export default function ClosingCta() {
     <section className="mk-cta">
       <div className="mk-wrap mk-cta-in">
         <p className="mk-eyebrow">Start here</p>
-        <h2>Give it your website and one channel. See what it says to your first lead.</h2>
+        <h2>Give it your website and one channel. Watch it handle your first lead tonight.</h2>
         <p>
-          Free to start, no card. Connect Telegram or drop the widget on your site, read what the
-          agent generated from your pages, and watch the first real conversation — cost, tool calls
-          and all — in your inbox.
+          A full month free, AI credits included, no card. Connect Telegram or drop the widget on
+          your site, read what the agent learned from your pages, and see the first real
+          conversation land in your inbox — every reply, every action, every rupee it cost.
         </p>
         <div className="mk-hero-cta">
           <Link href="/signup" className="btn primary mk-btn-lg">
-            Start free
+            Start your free month
           </Link>
           <a href={GITHUB_URL} className="btn mk-btn-lg" target="_blank" rel="noreferrer">
             Read the source
