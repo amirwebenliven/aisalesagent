@@ -2,6 +2,7 @@ import type { ChannelKind } from "@prisma/client";
 import TopBar from "@/components/TopBar";
 import ChannelControls from "@/components/channels/ChannelControls";
 import TelegramConnect from "@/components/channels/TelegramConnect";
+import WhatsAppConnect from "@/components/channels/WhatsAppConnect";
 import WidgetConnect from "@/components/channels/WidgetConnect";
 import { prisma } from "@/lib/db";
 import { widgetEmbedSnippet } from "@/lib/channels";
@@ -32,8 +33,7 @@ const CATALOGUE: {
     approval: "None",
     effort: "2 minutes",
     caution: "Unofficial protocol — numbers can be banned. Disclose to the client.",
-    built: false,
-    blocker: "Needs a running WAHA instance (WAHA_URL); the adapter is not written yet.",
+    built: true,
   },
   {
     kind: "WIDGET",
@@ -188,6 +188,40 @@ export default async function Channels() {
                         connected={
                           live?.externalId
                             ? { username: live.externalId, agentId: live.agentId, note: pollingNote }
+                            : null
+                        }
+                      />
+                      {live && (
+                        <ChannelControls
+                          channelId={live.id}
+                          status={live.status}
+                          agentId={live.agentId}
+                          agents={agents}
+                        />
+                      )}
+                    </>
+                  ) : ch.kind === "WHATSAPP_QR" ? (
+                    // Same reasoning as Telegram above, and it matters more here:
+                    // WhatsAppConnect owns the QR dialog, and the router.refresh()
+                    // that fires the moment the phone pairs re-renders this tree.
+                    // Split across the live/not-live branches it would remount at
+                    // exactly that moment — closing the dialog on the success
+                    // panel, which is the one screen worth reading.
+                    <>
+                      <WhatsAppConnect
+                        agents={agents}
+                        connected={
+                          live
+                            ? {
+                                phoneNumber: live.externalId ?? live.displayName,
+                                agentId: live.agentId,
+                                status: live.status,
+                                // ISO, not a Date: the client computes "day N of
+                                // 60" from an epoch difference and must not
+                                // inherit a serialisation quirk to do it.
+                                warmupStartedAt: live.warmupStartedAt?.toISOString() ?? null,
+                                dailySendCap: live.dailySendCap,
+                              }
                             : null
                         }
                       />

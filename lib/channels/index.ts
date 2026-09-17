@@ -3,6 +3,7 @@ import { runAgent } from "../ai/agent";
 import { prisma } from "../db";
 import { enqueueInbound, type InboundJob } from "../queue";
 import { telegramAdapter } from "./telegram";
+import { whatsappAdapter } from "./whatsapp";
 import { widgetAdapter } from "./widget";
 import type { ChannelAdapter, ChannelId, InboundMessage } from "./types";
 
@@ -10,11 +11,25 @@ export * from "./types";
 /** Canonical home is lib/queue.ts; re-exported so `from "@/lib/channels"` keeps working. */
 export type { InboundJob } from "../queue";
 export { telegramAdapter, connectTelegram, disconnectTelegram, sendTyping } from "./telegram";
+export {
+  whatsappAdapter,
+  connectWhatsApp,
+  whatsappSessionState,
+  whatsappQrDataUrl,
+  whatsappWebhookAuthentic,
+  whatsappWebhookUrl,
+  applySessionStatus,
+  checkSendAllowance,
+  dailyCapFor,
+  warmupDay,
+  WARMUP_DAYS,
+} from "./whatsapp";
 export { widgetAdapter, widgetSettings, ensureWidgetConnection, widgetEmbedSnippet } from "./widget";
 
 /** The registry. A new channel is one entry here plus its adapter file. */
 const ADAPTERS: Partial<Record<ChannelKind, ChannelAdapter>> = {
   TELEGRAM: telegramAdapter,
+  WHATSAPP_QR: whatsappAdapter,
   WIDGET: widgetAdapter,
 };
 
