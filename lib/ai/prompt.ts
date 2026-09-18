@@ -15,16 +15,25 @@ import type { ChatMessage } from "./client";
  * per-turn in there and prompt caching silently stops working — input cost
  * jumps roughly 10x and nothing visibly breaks.
  *
- * The retrieved knowledge (section 2) is a SEPARATE system message right after
- * it, deliberately outside the prefix. CLAUDE.md §5 describes sections 1 and 2
- * together as the prefix; that held while retrieval searched only the incoming
- * message, which rarely changes the FAQ set between turns. Retrieval now reads
- * the last few turns as well (lib/ai/agent.ts buildRetrievalQuery), so the set
- * legitimately shifts as the conversation moves — and with the FAQs inside the
- * first message, every shift threw away the cached instructions too. Split, the
- * instructions stay cached whatever retrieval does, and when the FAQ set does
- * repeat, the cache simply extends over it. §5 should be read with that
- * narrowing.
+ * The retrieved knowledge is a SEPARATE system message, deliberately outside the
+ * prefix — and deliberately LATE: after the contact, the summary and the history,
+ * immediately before the customer's new message, followed by one short
+ * per-turn instruction to answer from it. Two reasons, both measured on the
+ * first live WhatsApp tenant (18 Sep 2026):
+ *
+ *  - Recency. With the knowledge block up front and a history in which the
+ *    agent had twice promised a colleague, gpt-4o-mini escalated "price details
+ *    I cannot confirm" on every replay while the price sat in the block. Moved
+ *    next to the question, with the instruction after the history, the same
+ *    model quoted the price and sent the photo. Small models read what is near
+ *    the question; a block twenty turns up is furniture.
+ *  - Caching. Retrieval reads the recent turns (lib/ai/agent.ts
+ *    buildRetrievalQuery) and remembers the conversation's FAQs, so the set
+ *    shifts as the conversation moves. Up front, every shift invalidated the
+ *    cached instructions AND the history behind it. Late, the instructions and
+ *    the append-only history stay cached turn after turn; only the tail varies.
+ *
+ * CLAUDE.md §5 has the layout. Section 1 alone is the prefix.
  */
 
 const VERBATIM_TURNS = 20; // older turns live in conversation.summary
@@ -210,16 +219,31 @@ export function buildKnowledgePrompt(faqs: PromptFaq[]): string | null {
 }
 
 /**
- * The full message list: section 1 (cached), section 2 (knowledge, per turn),
- * then sections 3-5 — contact, summary, history, the new message.
+ * The one instruction that sits between the knowledge block and the customer's
+ * message. It exists because a conversation's own history can argue against the
+ * knowledge: an agent that said "I can't send links" three turns ago, or
+ * promised a colleague, will keep saying it — a small model copies its own past
+ * turns over a fact block placed far away. This line is what broke that on the
+ * live tenant. Generic on purpose: nothing about any product or any tenant.
+ */
+const ANSWER_FROM_KNOWLEDGE =
+  `Answer the customer's next message from "Answers you can rely on" above. If an answer ` +
+  `there states the price, size, colour, stock or policy they ask about, give it now, exactly ` +
+  `as written — with its Link when they ask where to buy, and its Image via sendImage when ` +
+  `they ask for a photo. Earlier replies in this conversation that said you could not, or ` +
+  `that promised a colleague, were written before you had these answers: do not repeat them, ` +
+  `and do not call alertHuman for something the answers cover. If nothing above covers it, ` +
+  `say so plainly.`;
+
+/**
+ * The full message list. Section 1 (cached) → contact → summary → history →
+ * knowledge (per turn) → the answer-from-knowledge instruction → the new message.
+ * The knowledge and the instruction sit LAST for the reasons in the header.
  */
 export function buildMessages(args: BuildPromptArgs): ChatMessage[] {
   const messages: ChatMessage[] = [
     { role: "system", content: buildSystemPrompt(args) },
   ];
-
-  const knowledge = buildKnowledgePrompt(args.faqs);
-  if (knowledge) messages.push({ role: "system", content: knowledge });
 
   const who = [
     args.contact.name ? `Name: ${args.contact.name}` : null,
@@ -254,6 +278,12 @@ export function buildMessages(args: BuildPromptArgs): ChatMessage[] {
       role: m.direction === "INBOUND" ? "user" : "assistant",
       content,
     });
+  }
+
+  const knowledge = buildKnowledgePrompt(args.faqs);
+  if (knowledge) {
+    messages.push({ role: "system", content: knowledge });
+    messages.push({ role: "system", content: ANSWER_FROM_KNOWLEDGE });
   }
 
   messages.push({ role: "user", content: args.incoming });

@@ -164,13 +164,14 @@ Start with Telegram. It is a day's work, needs nobody's permission, and proves t
 
 ```
 [1] System: persona, goal, company info, rules, flow, tools guidance, how-to-write   ← identical every call (first system message + tool list)
-[2] Knowledge: top-k retrieved FAQs, with Link/Image lines — its OWN system message   ← varies per turn
-[3] Contact: name, tags, prior summary
-[4] History: recent turns verbatim (a sent photo replayed as "[sent photo: url]"), older turns summarised
-[5] The new message
+[2] Contact: name, tags, prior summary
+[3] History: recent turns verbatim (a sent photo replayed as "[sent photo: url]"), older turns summarised   ← append-only
+[4] Knowledge: top-k retrieved FAQs, with Link/Image lines — its OWN system message   ← varies per turn
+[5] "Answer from the answers above" — one fixed per-turn instruction (prompt.ts ANSWER_FROM_KNOWLEDGE)
+[6] The new message
 ```
 
-**Section 1 is the cache prefix** (narrowed 18 Sep 2026 — it was "1 and 2"). Keep it byte-identical between calls in a conversation or prompt caching silently stops working and costs jump ~10×: never a timestamp, a random ID, or per-turn data in the first system message, and never re-order the tool list (new tools are appended last). Section 2 is deliberately outside the prefix: retrieval now reads the recent turns too (`buildRetrievalQuery` in `lib/ai/agent.ts`), so the FAQ set legitimately shifts as the conversation moves, and inside the first message every shift would have thrown the cached instructions away. It still keeps a stable order (`lib/knowledge/retrieve.ts`) so that when the set repeats, the cache extends over it.
+**Section 1 is the cache prefix** (narrowed 18 Sep 2026 — it was "1 and 2"). Keep it byte-identical between calls in a conversation or prompt caching silently stops working and costs jump ~10×: never a timestamp, a random ID, or per-turn data in the first system message, and never re-order the tool list (new tools are appended last). **The knowledge block comes LATE, right before the new message** — measured on the first live tenant: with it up front and a history in which the agent had twice promised a colleague, gpt-4o-mini escalated "price I cannot confirm" on every replay while the price sat in the block; moved next to the question, with [5] after the history, the same model quoted the price. Late is also the cache-friendly place: the append-only history stays in the stable part and only the tail varies. Retrieval keeps a stable order (`lib/knowledge/retrieve.ts`) and remembers the conversation's FAQs (`Conversation.contextFaqIds`), so a product named ten turns ago is still in the block.
 
 ### Conversation realism — cheap to copy, and most of why DM Champ reads as human
 
