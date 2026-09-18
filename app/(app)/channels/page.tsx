@@ -115,6 +115,10 @@ export default async function Channels() {
         <section className="grid g2">
           {CATALOGUE.map((ch) => {
             const live = byKind.get(ch.kind);
+            // A disconnected row still exists (its conversations depend on it)
+            // but the card treats it as "not connected": the Connect button
+            // comes back, and the controls that act on a live link do not.
+            const gone = live?.status === "DISCONNECTED";
             const pollingNote =
               live?.kind === "TELEGRAM" && live.status === "ACTIVE" && !webhookMode
                 ? live.lastErrorMessage
@@ -126,7 +130,11 @@ export default async function Channels() {
                     <strong style={{ fontSize: 13.5 }}>{ch.name}</strong>
                     <p className="small dim" style={{ marginTop: 3 }}>{ch.blurb}</p>
                   </div>
-                  {live ? (
+                  {live && gone ? (
+                    <span className="pill mute" title="The link is ended; every conversation is kept in the inbox.">
+                      disconnected · history kept
+                    </span>
+                  ) : live ? (
                     <span className={`pill ${live.status === "ACTIVE" ? "ok" : live.status === "FAILED" ? "err" : "warn"}`}>
                       <span className="dot" />
                       {live.status.toLowerCase()}
@@ -149,13 +157,13 @@ export default async function Channels() {
 
                 {/* Telegram's handle is not here: it is the headline of the bot
                     panel below, next to the link people came for. */}
-                {live?.externalId && live.kind !== "TELEGRAM" && (
+                {live?.externalId && live.kind !== "TELEGRAM" && !gone && (
                   <div className="small dim mono" style={{ marginTop: 12 }}>
                     {live.displayName}
                   </div>
                 )}
 
-                {live?.warmupStartedAt && (
+                {live?.warmupStartedAt && !gone && (
                   <p className="small" style={{ marginTop: 10, color: "var(--warn)" }}>
                     Warming up · {live.dailySendCap}/day cap · cold outreach disabled
                   </p>
@@ -163,11 +171,11 @@ export default async function Channels() {
 
                 {/* The polling note is rendered by the bot panel instead, as a
                     note. Everything else here is a real provider failure. */}
-                {live?.lastErrorMessage && !pollingNote && (
+                {live?.lastErrorMessage && !pollingNote && !gone && (
                   <p className="small" style={{ marginTop: 10, color: "var(--warn)" }}>{live.lastErrorMessage}</p>
                 )}
 
-                {ch.caution && !live && (
+                {ch.caution && (!live || gone) && (
                   <p className="small dim" style={{ marginTop: 10, fontStyle: "italic" }}>{ch.caution}</p>
                 )}
 
@@ -186,14 +194,15 @@ export default async function Channels() {
                       <TelegramConnect
                         agents={agents}
                         connected={
-                          live?.externalId
+                          live?.externalId && !gone
                             ? { username: live.externalId, agentId: live.agentId, note: pollingNote }
                             : null
                         }
                       />
-                      {live && (
+                      {live && !gone && (
                         <ChannelControls
                           channelId={live.id}
+                          kind={live.kind}
                           status={live.status}
                           agentId={live.agentId}
                           agents={agents}
@@ -211,7 +220,7 @@ export default async function Channels() {
                       <WhatsAppConnect
                         agents={agents}
                         connected={
-                          live
+                          live && !gone
                             ? {
                                 phoneNumber: live.externalId ?? live.displayName,
                                 agentId: live.agentId,
@@ -225,20 +234,22 @@ export default async function Channels() {
                             : null
                         }
                       />
-                      {live && (
+                      {live && !gone && (
                         <ChannelControls
                           channelId={live.id}
+                          kind={live.kind}
                           status={live.status}
                           agentId={live.agentId}
                           agents={agents}
                         />
                       )}
                     </>
-                  ) : live ? (
+                  ) : live && !gone ? (
                     <>
                       {live.kind === "WIDGET" && <WidgetConnect embed={widgetEmbedSnippet(live.webhookSecret)} />}
                       <ChannelControls
                         channelId={live.id}
+                        kind={live.kind}
                         status={live.status}
                         agentId={live.agentId}
                         agents={agents}

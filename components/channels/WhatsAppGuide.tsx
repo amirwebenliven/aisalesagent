@@ -209,16 +209,18 @@ export function WhatsAppPairedPanel({
 
       <WarmupPanel startedAt={warmupStartedAt} dailyCap={dailySendCap} />
 
-      {/* Rule 4: the honest gap. Pausing is real and stops the agent; unlinking
-          the phone is not built, so say where it is done instead of shipping a
-          "Disconnect" that quietly only pauses. */}
+      {/* Two different things, said plainly: Pause keeps the link, Disconnect
+          ends it (WAHA logs the session out, which removes this device from the
+          phone's Linked devices). The manual route stays in the text for the
+          case where the bridge is down and the button refuses. */}
       <div className="callout info callout-bar">
-        <strong>Unlinking the phone</strong>
+        <strong>Pausing vs disconnecting</strong>
         <p className="small">
-          <strong>Pause</strong> below stops the agent replying and keeps every conversation. It does
-          not unlink the phone — we cannot end a WhatsApp session from here yet. To fully unlink, on
-          the phone open <strong>WhatsApp → Settings → Linked devices</strong>, tap this device and
-          choose <strong>Log out</strong>.
+          <strong>Pause</strong> below stops the agent replying and keeps the phone linked, so Resume
+          is instant. <strong>Disconnect</strong> logs this number out of the link — it disappears from
+          the phone’s Linked devices — and keeps every conversation; reconnect by scanning a new QR.
+          If the bridge is unreachable and Disconnect refuses, unlink from the phone instead:{" "}
+          <strong>WhatsApp → Settings → Linked devices</strong>, tap this device, <strong>Log out</strong>.
         </p>
       </div>
     </div>

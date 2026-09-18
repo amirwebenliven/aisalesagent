@@ -6,6 +6,8 @@ import { prisma } from "@/lib/db";
 import { currentOrg } from "@/lib/tenant";
 import { connectTelegram, disconnectTelegram, ensureWidgetConnection } from "@/lib/channels";
 import { telegramCredentials } from "@/lib/channels/telegram";
+import { disconnectWhatsApp } from "@/lib/channels/whatsapp";
+import { disconnectWidget } from "@/lib/channels/widget";
 import type { ActionState } from "@/components/ui/action-state";
 
 /**
@@ -19,10 +21,12 @@ import type { ActionState } from "@/components/ui/action-state";
  * The one duplicated thing is the token shape — deliberately, and it is four
  * characters of regex.
  *
- * Nothing in this file deletes a connection. A ChannelConnection cascades to
- * its conversations and their messages, so "disconnect" would silently delete
- * the customer's entire history with those people — pausing stops the channel
- * and keeps the evidence.
+ * Nothing in this file DELETES a connection. A ChannelConnection cascades to
+ * its conversations and their messages, so a delete would silently erase the
+ * customer's entire history with those people. Pause stops the channel and
+ * keeps the provider link; Disconnect (below) ends the provider link — WhatsApp
+ * logged out of the phone, Telegram's webhook removed and token wiped, the
+ * widget's embed secret rotated — and still keeps the row and every message.
  */
 
 /** What the setup modal renders. `username` is the proof the token reached a bot. */
@@ -135,6 +139,59 @@ export async function resumeChannel(channelId: string): Promise<ActionState> {
   revalidatePath("/channels");
   revalidatePath("/dashboard");
   return { ok: true, message: "Live again." };
+}
+
+/**
+ * End the provider link and forget the credentials. Each channel has its own
+ * idea of "disconnected", so each adapter does its own, and a provider that
+ * cannot be reached fails the action rather than leaving a row that SAYS
+ * disconnected while the phone is still linked (see disconnectWhatsApp).
+ */
+export async function disconnectChannel(channelId: string): Promise<ActionState> {
+  const org = await currentOrg();
+  const connection = await prisma.channelConnection.findFirst({
+    where: { id: channelId, organizationId: org.id },
+  });
+  if (!connection) return { ok: false, error: "Channel not found." };
+  if (connection.status === "DISCONNECTED") return { ok: true, message: "Already disconnected." };
+
+  try {
+    switch (connection.kind) {
+      case "WHATSAPP_QR":
+        await disconnectWhatsApp(connection);
+        break;
+      case "TELEGRAM":
+        await disconnectTelegram(connection, { forget: true });
+        break;
+      case "WIDGET":
+        await disconnectWidget(connection);
+        break;
+      default:
+        // No adapter owns a provider-side teardown for this kind yet; wiping
+        // the credentials is what "disconnected" can honestly mean here.
+        await prisma.channelConnection.update({
+          where: { id: connection.id },
+          data: { status: "DISCONNECTED", credentialsEnc: null },
+        });
+    }
+  } catch (e) {
+    // The provider's own words: "Cannot reach the WhatsApp bridge…" or
+    // Telegram's description tells the operator what to fix.
+    return { ok: false, error: `Could not disconnect: ${e instanceof Error ? e.message : String(e)}` };
+  }
+
+  revalidatePath("/channels");
+  revalidatePath("/dashboard");
+
+  const message =
+    connection.kind === "WHATSAPP_QR"
+      ? "Disconnected. The number is logged out of the link; conversations are kept. Scan a new QR to reconnect."
+      : connection.kind === "TELEGRAM"
+        ? "Disconnected. The webhook is removed and the token forgotten; conversations are kept."
+        : connection.kind === "WIDGET"
+          ? "Disconnected. The old embed code no longer works; conversations are kept. Connect again for a new snippet."
+          : "Disconnected. Conversations are kept.";
+  return { ok: true, message };
 }
 
 export async function assignAgent(channelId: string, agentId: string): Promise<ActionState> {

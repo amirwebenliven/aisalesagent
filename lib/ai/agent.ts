@@ -1,4 +1,5 @@
-import type { ConversationState, Prisma } from "@prisma/client";
+import type { ConversationState, Message, Prisma } from "@prisma/client";
+import type { OutboundMessage } from "../channels/types";
 import { prisma } from "../db";
 import { env } from "../env";
 import { retrieveFaqs as rankFaqs, type RetrievedFaq } from "../knowledge/retrieve";
@@ -14,7 +15,7 @@ import {
   type Usage,
 } from "./client";
 import { buildMessages, replyDelayMs, splitReply } from "./prompt";
-import { executeTool, getToolDefs, type ToolContext } from "./tools";
+import { executeTool, getToolDefs, type ToolAttachment, type ToolContext } from "./tools";
 
 /**
  * The agent loop: one inbound message in, the customer's replies out.
@@ -155,34 +156,166 @@ export async function runToolLoop(opts: ToolLoopOptions): Promise<ToolLoopResult
 // Knowledge retrieval
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** Sized for retrieve.ts: plainto_tsquery over more than this is all noise. */
+const RETRIEVAL_QUERY_MAX_CHARS = 600;
+const RETRIEVAL_CONTEXT_INBOUND = 3;
+
+/**
+ * Chat filler that must not reach the ranker. lib/knowledge/retrieve.ts keeps
+ * only the FIRST twelve non-stopword words of the query for its overlap pass,
+ * and its stopword list is the grammatical kind (the, and, what…). A real
+ * transcript is mostly the OTHER kind — "ok please send me", "yes also can
+ * you", "let me check", "hold on" — and measured against the live tenant those
+ * twelve slots were all spent on it before the product's name was reached, so
+ * the query "knew" about the saree and still retrieved the generic price FAQs.
+ * Words that describe the act of asking, not the thing asked about.
+ */
+const RETRIEVAL_FILLER = new Set([
+  "hi", "hii", "hiii", "hey", "hello", "helo", "ok", "okay", "yes", "yeah", "yep", "yup",
+  "no", "nope", "sure", "fine", "great", "good", "nice", "thanks", "thank", "thankyou",
+  "please", "pls", "plz", "sorry", "welcome",
+  "send", "sending", "sent", "share", "give", "show", "tell", "let", "know", "want",
+  "need", "like", "looking", "look", "check", "find", "help", "get", "provide", "wait",
+  "hold", "moment", "just", "also", "here", "now", "problem", "directly", "either",
+  "more", "some", "one", "its", "him", "her", "his", "who", "which", "may", "might",
+  "right", "well", "actually", "really", "still",
+]);
+
+/**
+ * The text the FAQs are retrieved FOR — the new message plus what the customer
+ * and the agent just said.
+ *
+ * Retrieval used to search only the incoming message. A customer who asked
+ * about a red saree, then three turns later "ok please send me the price
+ * details", got the 62 generic price FAQs and not the saree's — the product
+ * named three messages up was simply not in the query. The FAQ existed.
+ *
+ * Order matters because of that twelve-word cap. Incoming text first, so the
+ * literal question always gets its words in. Then the agent's LAST reply: it
+ * was written from the knowledge base, so it names the product in the FAQ's own
+ * words ("handprinted silk blend sarees in maroon") where the customer said
+ * "red saree". Then the customer's own recent messages, newest first, for
+ * whatever the agent has not restated yet.
+ *
+ * Deterministic for the same inputs, which is all the ordering guarantee in
+ * lib/knowledge/retrieve.ts needs from us. Exported so scripts/replay.ts runs
+ * the identical query and cannot drift from the live path.
+ */
+export function buildRetrievalQuery(
+  incoming: string,
+  history: Pick<Message, "direction" | "body">[],
+): string {
+  const inbound = history
+    .filter((m) => m.direction === "INBOUND")
+    .slice(-RETRIEVAL_CONTEXT_INBOUND)
+    .reverse();
+  // The last outbound WITH words: a photo row's body is its caption, often
+  // empty, and an empty "last reply" would throw away exactly the signal this
+  // function exists to capture — the product named in the FAQ's own words.
+  const lastOutbound = [...history].reverse().find((m) => m.direction === "OUTBOUND" && m.body.trim());
+
+  const sources = [incoming, lastOutbound?.body ?? "", ...inbound.map((m) => m.body)];
+
+  // Dedupe on the bare word — "Saree", "saree," and "saree?" are one term to
+  // the ranker and three to a naive Set — but emit the word as typed, so what
+  // reaches plainto_tsquery still reads as language.
+  const seen = new Set<string>();
+  const words: string[] = [];
+  for (const source of sources) {
+    for (const token of source.split(/\s+/)) {
+      const word = token.trim();
+      if (!word) continue;
+      const key = word.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+      if (!key || seen.has(key) || RETRIEVAL_FILLER.has(key)) continue;
+      seen.add(key);
+      words.push(word);
+    }
+  }
+
+  let query = "";
+  for (const word of words) {
+    if (query.length + word.length + 1 > RETRIEVAL_QUERY_MAX_CHARS) break;
+    query += (query ? " " : "") + word;
+  }
+  return query;
+}
+
 /**
  * Top FAQs for this turn.
  *
  * Ranking itself lives in lib/knowledge/retrieve.ts (Postgres full-text, with a
- * word-overlap second pass). This wrapper only adds the house fallback: when the
- * query matches nothing at all, the model still does better with the business's
- * best answers in front of it than with an empty knowledge section.
+ * word-overlap second pass). This wrapper decides WHAT is ranked, in two passes:
+ *
+ *   1. The literal question — the incoming text with the filler stripped.
+ *   2. The question in context — buildRetrievalQuery over the recent turns.
+ *
+ * Two passes, not one, because a single context-rich query has a failure mode
+ * the old incoming-only query did not. Measured on the live tenant: after four
+ * turns about a saree, "Do you deliver to Dubai?" as one merged query returned
+ * eight saree FAQs and no delivery FAQ — the shop has 25 saree FAQs and every
+ * one of them out-scored the delivery answer on "handprinted silk blend". The
+ * literal question keeps half the slots so the topic can move; the context
+ * pass fills the rest so "ok, the price?" still finds the saree's price and not
+ * the 62 generic ones. With no history the two queries are the same and the
+ * second pass is skipped.
+ *
+ * Then the house fallback: when neither pass matches anything, the model still
+ * does better with the business's best answers in front of it than with an
+ * empty knowledge section.
  *
  * Was a dynamic import behind a catch-all while the knowledge track was being
  * written in parallel; that also swallowed real query errors and erased the
  * ranking fields, so it is a plain static call now.
+ *
+ * Exported for scripts/replay.ts and the try-it-out sandbox, so both see the
+ * FAQs the live turn would see. Read-only: useCount is bumped by settleSpend,
+ * which only the live turn calls.
  */
-async function retrieveFaqs(
+export async function retrieveFaqsForTurn(
   organizationId: string,
-  query: string,
+  incoming: string,
+  history: Pick<Message, "direction" | "body">[],
   take: number,
 ): Promise<RetrievedFaq[]> {
-  const ranked = await rankFaqs(organizationId, query, take);
-  if (ranked.length) return ranked;
+  const literal = buildRetrievalQuery(incoming, []);
+  const contextual = buildRetrievalQuery(incoming, history);
+
+  const direct = await rankFaqs(organizationId, literal, take);
+  const inContext =
+    contextual !== literal ? await rankFaqs(organizationId, contextual, take) : [];
+
+  // Literal matches first (up to half), then context, then whatever literal
+  // matches are left. Dedupe on id — the same FAQ usually tops both lists.
+  // Deterministic given deterministic inputs, which keeps the knowledge block
+  // byte-identical when nothing about the conversation has changed.
+  const directShare = Math.ceil(take / 2);
+  const picked: RetrievedFaq[] = [];
+  const seen = new Set<string>();
+  const add = (f: RetrievedFaq) => {
+    if (picked.length >= take || seen.has(f.id)) return;
+    seen.add(f.id);
+    picked.push(f);
+  };
+  direct.slice(0, directShare).forEach(add);
+  inContext.forEach(add);
+  direct.slice(directShare).forEach(add);
+  if (picked.length) return picked;
 
   const fallback = await prisma.faq.findMany({
     where: { organizationId },
     // Hand-written FAQs outrank generated ones (CLAUDE.md §7). The id tiebreak
-    // keeps the order stable as useCount moves, so the cached prompt prefix
-    // does not silently stop matching mid-conversation.
+    // keeps the order stable as useCount moves, so the same fallback set prints
+    // the same way turn after turn.
     orderBy: [{ isManual: "desc" }, { useCount: "desc" }, { id: "asc" }],
     take,
-    select: { id: true, question: true, answer: true, sourceUrl: true, isManual: true },
+    select: {
+      id: true,
+      question: true,
+      answer: true,
+      sourceUrl: true,
+      imageUrl: true,
+      isManual: true,
+    },
   });
 
   // score 0 = "not matched, offered as background" — keeps the row shape honest
@@ -233,6 +366,9 @@ export interface AgentTurnResult {
   status: AgentTurnStatus;
   reason?: string;
   bubbles: string[];
+  /** Photos the model queued with sendImage. Persisted and sent AFTER the bubbles. */
+  attachments: ToolAttachment[];
+  /** One per bubble, then one per attachment — the same order they were persisted in. */
   messageIds: string[];
   toolCalls: ExecutedToolCall[];
   steps: number;
@@ -253,6 +389,7 @@ function stop(
     status,
     reason,
     bubbles: [],
+    attachments: [],
     messageIds: [],
     toolCalls: [],
     steps: 0,
@@ -308,7 +445,9 @@ export async function runAgentTurn(args: RunAgentTurnArgs): Promise<AgentTurnRes
     where: { conversationId: convo.id, organizationId },
     orderBy: { createdAt: "desc" },
     take: 40,
-    select: { direction: true, body: true, createdAt: true },
+    // mediaUrl too: a photo the agent sent is replayed to the model as a note
+    // (see buildMessages), otherwise it cannot tell it already sent one.
+    select: { direction: true, body: true, createdAt: true, mediaUrl: true },
   });
   const history = recent.reverse();
 
@@ -321,14 +460,16 @@ export async function runAgentTurn(args: RunAgentTurnArgs): Promise<AgentTurnRes
     history.pop();
   }
 
-  const faqs = await retrieveFaqs(organizationId, args.incomingText, 8);
+  const faqs = await retrieveFaqsForTurn(organizationId, args.incomingText, history, 8);
 
   const cfg = await resolveModelConfig(organizationId);
   const messages = buildMessages({
     agent,
     contact: convo.contact,
     conversation: { summary: convo.summary },
-    faqs: faqs.map((f) => ({ question: f.question, answer: f.answer })),
+    // Passed whole: the prompt prints sourceUrl and imageUrl alongside Q and A,
+    // which is how the model learns it has a link and a photo to offer.
+    faqs,
     history,
     incoming: args.incomingText,
   });
@@ -337,6 +478,9 @@ export async function runAgentTurn(args: RunAgentTurnArgs): Promise<AgentTurnRes
     organizationId,
     conversationId: convo.id,
     contactId: convo.contactId,
+    // Fresh per turn. sendImage appends here; what is in it after the loop is
+    // what gets persisted and sent behind the text.
+    attachments: [],
   };
 
   // ── Spend caps ────────────────────────────────────────────────────────────
@@ -395,6 +539,7 @@ export async function runAgentTurn(args: RunAgentTurnArgs): Promise<AgentTurnRes
       status: "capped",
       reason: loop.reason,
       bubbles: [],
+      attachments: [],
       messageIds: [],
       toolCalls: [...loop.toolCalls, { id: "cap", name: "alertHuman", args: { reason: loop.reason }, result: escalation }],
       steps: loop.steps,
@@ -407,8 +552,11 @@ export async function runAgentTurn(args: RunAgentTurnArgs): Promise<AgentTurnRes
   }
 
   const stateAfter = await currentState(convo.id, organizationId);
+  const attachments = ctx.attachments ?? [];
 
-  if (!loop.text) {
+  // A photo with no words is still a reply — "send me a picture" answered with
+  // the picture is exactly what the customer asked for.
+  if (!loop.text && !attachments.length) {
     return {
       status: "silent",
       reason:
@@ -416,6 +564,7 @@ export async function runAgentTurn(args: RunAgentTurnArgs): Promise<AgentTurnRes
           ? `Hit the ${env.MAX_AGENT_STEPS}-step cap without producing a reply.`
           : "The model returned no text.",
       bubbles: [],
+      attachments: [],
       messageIds: [],
       toolCalls: loop.toolCalls,
       steps: loop.steps,
@@ -427,21 +576,33 @@ export async function runAgentTurn(args: RunAgentTurnArgs): Promise<AgentTurnRes
     };
   }
 
-  const bubbles = splitReply(loop.text, agent.splitMessages ? agent.maxRepliesPerTurn : 1);
+  const bubbles = loop.text
+    ? splitReply(loop.text, agent.splitMessages ? agent.maxRepliesPerTurn : 1)
+    : [];
+
+  // Text first, then the photos: the customer reads "here it is" and then sees
+  // it, the way a person sends them. Each photo is its own Message row so the
+  // inbox thread and the widget's poll show it in place, with the caption as
+  // the body (empty when there is none — the mediaUrl is the content).
+  const rows: { body: string; mediaUrl: string | null }[] = [
+    ...bubbles.map((body) => ({ body, mediaUrl: null })),
+    ...attachments.map((a) => ({ body: a.caption ?? "", mediaUrl: a.url })),
+  ];
 
   // One transaction: the reply and the money move together or not at all.
   const messageIds: string[] = [];
   const created = await prisma.$transaction(
-    bubbles.map((body, i) =>
+    rows.map((row, i) =>
       prisma.message.create({
         data: {
           organizationId,
           conversationId: convo.id,
           direction: "OUTBOUND",
-          body,
+          body: row.body,
+          mediaUrl: row.mediaUrl,
           aiGenerated: true,
           model: loop.model,
-          // The whole turn's cost sits on the first bubble. Splitting it evenly
+          // The whole turn's cost sits on the first row. Splitting it evenly
           // would lose fractions to rounding and stop the messages summing to
           // the conversation total.
           costUsd: i === 0 ? loop.costUsd : null,
@@ -459,6 +620,7 @@ export async function runAgentTurn(args: RunAgentTurnArgs): Promise<AgentTurnRes
   return {
     status: "replied",
     bubbles,
+    attachments,
     messageIds,
     toolCalls: loop.toolCalls,
     steps: loop.steps,
@@ -485,7 +647,12 @@ export interface AgentJob {
 }
 
 export interface AgentRunResult {
-  replies: string[];
+  /**
+   * What the adapter sends, in order: the text bubbles, then one message per
+   * photo ({ text: caption, mediaUrl }). Every sender passes these straight to
+   * adapter.send() — the same shape lib/channels/types.ts has always taken.
+   */
+  replies: OutboundMessage[];
   status: AgentTurnStatus;
   reason?: string;
   delayMs: number;
@@ -543,7 +710,7 @@ export async function runAgent(job: AgentJob): Promise<AgentRunResult> {
   });
 
   return {
-    replies: turn.bubbles,
+    replies: toOutbound(turn),
     status: turn.status,
     reason: turn.reason,
     delayMs: turn.delayMs,
@@ -551,6 +718,14 @@ export async function runAgent(job: AgentJob): Promise<AgentRunResult> {
     toolCalls: turn.toolCalls,
     conversationState: turn.conversationState,
   };
+}
+
+/** Bubbles first, photos after — the order they were persisted in and must be sent in. */
+function toOutbound(turn: Pick<AgentTurnResult, "bubbles" | "attachments">): OutboundMessage[] {
+  return [
+    ...turn.bubbles.map((text) => ({ text })),
+    ...turn.attachments.map((a) => ({ text: a.caption ?? "", mediaUrl: a.url })),
+  ];
 }
 
 /** Conversation totals + FAQ credit. Runs whether or not a reply came out. */

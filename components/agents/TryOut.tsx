@@ -20,12 +20,16 @@ type ToolCallView = { id: string; name: string; args: unknown; result: string };
 /** What the route accepts as prior context — one of the two shapes it parses. */
 type HistoryItem = { role: "user" | "assistant"; content: string };
 
+/** A photo sendImage queued — shown, and fed back as history like a bubble. */
+type Attachment = { url: string; caption?: string };
+
 type Turn =
   | { kind: "user"; id: string; text: string }
   | {
       kind: "agent";
       id: string;
       bubbles: string[];
+      attachments: Attachment[];
       toolCalls: ToolCallView[];
       usage: Usage;
       costUsd: number;
@@ -37,6 +41,7 @@ type Turn =
 
 type TryResponse = {
   bubbles?: string[];
+  attachments?: Attachment[];
   toolCalls?: ToolCallView[];
   usage?: Usage;
   costUsd?: number;
@@ -99,11 +104,21 @@ export default function TryOut({
 
     // The API rebuilds the prompt from scratch each turn, so it needs the
     // transcript back. Capped at 40 items, which is the route's own limit.
+    // A photo goes back the same way the live path replays it (lib/ai/prompt.ts
+    // buildMessages), so the sandbox's next turn knows what was already sent.
     const history: HistoryItem[] = turns
       .flatMap((t): HistoryItem[] =>
         t.kind === "user"
           ? [{ role: "user", content: t.text }]
-          : t.bubbles.map((b) => ({ role: "assistant", content: b })),
+          : [
+              ...t.bubbles.map((b): HistoryItem => ({ role: "assistant", content: b })),
+              ...t.attachments.map(
+                (a): HistoryItem => ({
+                  role: "assistant",
+                  content: [a.caption, `[sent photo: ${a.url}]`].filter(Boolean).join("\n"),
+                }),
+              ),
+            ],
       )
       .slice(-40);
 
@@ -129,6 +144,7 @@ export default function TryOut({
           kind: "agent",
           id: `a${Date.now()}`,
           bubbles: data.bubbles ?? [],
+          attachments: data.attachments ?? [],
           toolCalls: data.toolCalls ?? [],
           usage: data.usage ?? EMPTY_USAGE,
           costUsd: data.costUsd ?? 0,
@@ -212,7 +228,23 @@ export default function TryOut({
                 </div>
               ))}
 
-              {t.bubbles.length === 0 && (
+              {t.attachments.map((a, i) =>
+                /^https?:\/\//i.test(a.url) ? (
+                  <div key={`img${i}`} className="bubble out">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- remote URL from the tenant's own site */}
+                    <img
+                      src={a.url}
+                      alt={a.caption ?? "photo"}
+                      loading="lazy"
+                      style={{ display: "block", maxWidth: "100%", maxHeight: 280, borderRadius: 8, marginBottom: a.caption ? 6 : 0 }}
+                    />
+                    {a.caption}
+                    <span className="stamp">{agentName} · photo</span>
+                  </div>
+                ) : null,
+              )}
+
+              {t.bubbles.length === 0 && t.attachments.length === 0 && (
                 <div className="bubble out dim">
                   (no text — the model ended the turn without saying anything)
                   <span className="stamp">{agentName}</span>

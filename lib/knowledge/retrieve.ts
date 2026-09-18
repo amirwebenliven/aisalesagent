@@ -10,13 +10,14 @@ import { prisma } from "../db";
  * embedding call on the inbound message (which would be a second model call in
  * the hot path of every single reply).
  *
- * ORDER IS PART OF THE CONTRACT. lib/ai/prompt.ts puts these FAQs in section 2,
- * which is inside the cached prompt PREFIX. If the same query returns the same
- * FAQs in a different order between two turns of one conversation, the prefix
- * changes byte-for-byte, every cache read becomes a fresh read, and input cost
- * jumps ~10x with nothing visibly broken. Hence: every ORDER BY below ends in a
- * total tie-break on `id`, and nothing in the ordering depends on Postgres scan
- * order or on `random()`-flavoured scoring.
+ * ORDER IS PART OF THE CONTRACT. lib/ai/prompt.ts prints these FAQs as the
+ * knowledge block — its own system message right after the cached instruction
+ * prefix (CLAUDE.md §5). The instructions stay cached whatever retrieval does;
+ * the knowledge block extends that cache only when it is byte-identical to the
+ * previous turn's, which it can only be if the same FAQs come back in the same
+ * order. Hence: every ORDER BY below ends in a total tie-break on `id`, and
+ * nothing in the ordering depends on Postgres scan order or on `random()`-
+ * flavoured scoring.
  */
 
 export interface RetrievedFaq {
@@ -24,6 +25,8 @@ export interface RetrievedFaq {
   question: string;
   answer: string;
   sourceUrl: string | null;
+  /** The source page's representative photo, when the crawler found one. */
+  imageUrl: string | null;
   isManual: boolean;
   score: number;
 }
@@ -49,11 +52,11 @@ export async function retrieveFaqs(
   // index needs a migration we don't own. At a few hundred FAQs per tenant this
   // is sub-millisecond; add the index when a tenant passes ~10k.
   const ranked = await prisma.$queryRaw<RetrievedFaq[]>`
-    SELECT id, question, answer, "sourceUrl", "isManual",
+    SELECT id, question, answer, "sourceUrl", "imageUrl", "isManual",
            (ts_rank(tsv, tsq) * CASE WHEN "isManual" THEN ${MANUAL_BOOST}::float8 ELSE 1::float8 END)::float8
              AS score
     FROM (
-      SELECT f.id, f.question, f.answer, f."sourceUrl", f."isManual",
+      SELECT f.id, f.question, f.answer, f."sourceUrl", f."imageUrl", f."isManual",
              to_tsvector('english', f.question || ' ' || f.answer) AS tsv,
              plainto_tsquery('english', ${q}) AS tsq
       FROM "Faq" f
@@ -99,9 +102,9 @@ async function retrieveByOverlap(
   const overlap = Prisma.join(parts, " + ");
 
   return prisma.$queryRaw<RetrievedFaq[]>`
-    SELECT id, question, answer, "sourceUrl", "isManual", score
+    SELECT id, question, answer, "sourceUrl", "imageUrl", "isManual", score
     FROM (
-      SELECT f.id, f.question, f.answer, f."sourceUrl", f."isManual",
+      SELECT f.id, f.question, f.answer, f."sourceUrl", f."imageUrl", f."isManual",
              ((${overlap})::float8 * CASE WHEN f."isManual" THEN ${MANUAL_BOOST}::float8 ELSE 1::float8 END)
                AS score
       FROM "Faq" f

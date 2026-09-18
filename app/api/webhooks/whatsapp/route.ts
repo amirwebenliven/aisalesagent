@@ -44,6 +44,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "Unknown webhook" }, { status: 404 });
   }
 
+  // Disconnected: the credentials are gone, so nothing below could be verified,
+  // and a late session.status event must not flip the row back to PAUSED. 410
+  // tells WAHA there is nothing to retry.
+  if (connection.status === "DISCONNECTED") {
+    return NextResponse.json({ ok: false, error: "Channel disconnected" }, { status: 410 });
+  }
+
   // The RAW text, before any parsing: WAHA signs the exact bytes, and
   // re-serialising a parsed object changes key order and whitespace.
   const raw = await req.text();

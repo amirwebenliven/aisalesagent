@@ -5,7 +5,7 @@ import { enqueueInbound, type InboundJob } from "../queue";
 import { telegramAdapter } from "./telegram";
 import { whatsappAdapter } from "./whatsapp";
 import { widgetAdapter } from "./widget";
-import type { ChannelAdapter, ChannelId, InboundMessage } from "./types";
+import type { ChannelAdapter, ChannelId, InboundMessage, OutboundMessage } from "./types";
 
 export * from "./types";
 /** Canonical home is lib/queue.ts; re-exported so `from "@/lib/channels"` keeps working. */
@@ -177,7 +177,10 @@ export async function persistInbound(
   });
 
   const botShouldReply =
-    conversation.state === "AI_ACTIVE" && !contact.botExcluded && connection.status !== "PAUSED";
+    conversation.state === "AI_ACTIVE" &&
+    !contact.botExcluded &&
+    connection.status !== "PAUSED" &&
+    connection.status !== "DISCONNECTED";
 
   return {
     deduped: false,
@@ -201,7 +204,8 @@ export async function persistInbound(
 export interface DispatchResult {
   /** "queued" | "inline" | "dropped" — how the turn was handled. */
   mode: "queued" | "inline" | "dropped";
-  replies: string[];
+  /** Text bubbles first, then any photos as { text: caption, mediaUrl }. Empty unless inline. */
+  replies: OutboundMessage[];
   /** Set when nothing could run it. The message is still persisted, so nothing is lost. */
   reason?: string;
 }
@@ -263,22 +267,71 @@ export async function dispatchInbound(
 }
 
 /**
- * One provider call per bubble, in order. Sequential on purpose: fired in
+ * One provider call per message, in order. Sequential on purpose: fired in
  * parallel they arrive shuffled, and a two-bubble answer read backwards is
- * worse than one long paragraph.
+ * worse than one long paragraph — and a photo landing before "here it is" reads
+ * as a mistake.
+ *
+ * Takes OutboundMessage objects (a photo is `{ text: caption, mediaUrl }`) and
+ * still accepts bare strings, because the inbox's human reply and the follow-up
+ * sweep only ever send text and should not have to wrap it.
  */
 export async function sendBubbles(
   connection: ChannelConnection,
   to: string,
-  bubbles: string[],
+  bubbles: (string | OutboundMessage)[],
   opts: { gapMs?: number } = {},
 ): Promise<string[]> {
   const adapter = getAdapter(connection.kind);
   const ids: string[] = [];
 
-  for (const [i, text] of bubbles.entries()) {
+  // A disconnected channel has nothing to send with — its credentials are gone.
+  // The rows are persisted and visible in the inbox; delivery is impossible, and
+  // throwing here would make the queue retry a job that can never succeed.
+  if (connection.status === "DISCONNECTED") {
+    console.warn(
+      `[channels] ${connection.kind} ${connection.id} is disconnected — ${bubbles.length} message(s) stored, not sent`,
+    );
+    return ids;
+  }
+
+  for (const [i, bubble] of bubbles.entries()) {
     if (i > 0 && opts.gapMs) await new Promise((r) => setTimeout(r, opts.gapMs));
-    const { providerId } = await adapter.send(connection, to, { text });
+    const msg: OutboundMessage = typeof bubble === "string" ? { text: bubble } : bubble;
+
+    if (msg.mediaUrl) {
+      // Photos go out AFTER the text bubbles, so by the time one fails the
+      // customer already has the words. If this threw, the job would fail and
+      // BullMQ would retry it up to three times (lib/queue.ts) — re-running the
+      // model and re-sending text the customer has already read. Telegram
+      // rejects photos over 5 MB or from a host with the wrong content-type,
+      // and WAHA's fetch can fail inside the container; neither is worth a
+      // duplicate reply. The photo is best-effort: fall back to the caption
+      // plus the URL as text, and if even that fails, log it and move on. The
+      // row is in the inbox either way.
+      try {
+        const { providerId } = await adapter.send(connection, to, msg);
+        if (providerId) ids.push(providerId);
+      } catch (err) {
+        console.warn(
+          `[channels] photo not delivered on ${connection.kind} ${connection.id}: ` +
+            (err instanceof Error ? err.message : String(err)),
+        );
+        try {
+          const text = [msg.text, msg.mediaUrl].filter(Boolean).join("\n");
+          const { providerId } = await adapter.send(connection, to, { text });
+          if (providerId) ids.push(providerId);
+        } catch (err2) {
+          console.warn(
+            `[channels] photo fallback text not delivered either: ` +
+              (err2 instanceof Error ? err2.message : String(err2)),
+          );
+        }
+      }
+      continue;
+    }
+
+    const { providerId } = await adapter.send(connection, to, msg);
     if (providerId) ids.push(providerId);
   }
 

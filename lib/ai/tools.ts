@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { JobKind } from "@prisma/client";
 import { prisma } from "../db";
+import { isPrivateHost } from "../knowledge/crawl";
 import type { ToolDef } from "./client";
 
 /**
@@ -18,6 +19,12 @@ import type { ToolDef } from "./client";
  *    answer.
  */
 
+/** A photo the model asked to send with this turn's reply. Delivered after the text bubbles. */
+export interface ToolAttachment {
+  url: string;
+  caption?: string;
+}
+
 export interface ToolContext {
   organizationId: string;
   conversationId?: string;
@@ -27,6 +34,13 @@ export interface ToolContext {
    * must never flip a live conversation to HUMAN_ACTIVE or edit a real contact.
    */
   dryRun?: boolean;
+  /**
+   * Where sendImage queues its photos. The CALLER creates this array per turn
+   * and reads it back after the loop — the tool only appends. Left undefined,
+   * sendImage refuses rather than filling an array nobody will deliver, so the
+   * model is never told a photo is on its way when it is not.
+   */
+  attachments?: ToolAttachment[];
 }
 
 interface ToolImpl<S extends z.ZodTypeAny = z.ZodTypeAny> {
@@ -98,11 +112,16 @@ const alertHuman = defineTool({
     type: "function",
     function: {
       name: "alertHuman",
+      // Tenant-neutral on purpose. This used to say "asks for a price or a
+      // delivery commitment" — the first demo tenant's rule (an industrial
+      // chemicals supplier) baked into the platform, so a saree shop's agent
+      // escalated every "how much is it?" that its own FAQs answered. What
+      // earns a handover is the business's own rules, which live in the prompt.
       description:
         "Hand this conversation to a human colleague and stop replying. Call this when the " +
-        "customer asks for a person, asks for a price or a delivery commitment, raises a " +
-        "complaint, or describes a safety-critical, medical or food-contact application. " +
-        "Saying you will pass it on does NOT pass it on — only this call does.",
+        "business's handover rules (in your instructions) apply, when the customer asks for " +
+        "a person, raises a complaint, or when you cannot answer from your knowledge and have " +
+        "no tool that can. Saying you will pass it on does NOT pass it on — only this call does.",
       parameters: {
         type: "object",
         properties: {
@@ -411,17 +430,120 @@ const bookMeeting = defineTool({
   },
 });
 
+/**
+ * Two per reply. A customer who asks "show me some" gets a couple of photos and
+ * a question, not a gallery — WhatsApp renders each as its own message, and
+ * five in a row from a number that paired last week is the shape of a
+ * broadcast (CLAUDE.md §9).
+ */
+const MAX_IMAGES_PER_TURN = 2;
+
+const sendImage = defineTool({
+  def: {
+    type: "function",
+    function: {
+      name: "sendImage",
+      description:
+        "Send the customer a photo. You can ONLY send a URL from an \"Image:\" line listed " +
+        "with one of the answers in your knowledge — no other picture exists for you, and a " +
+        "\"Link:\" is a web page, not a photo. Call this when the customer asks to see a " +
+        "product, for a photo, or how something looks; then say in your reply that you are " +
+        "sending it. If the answer has no Image line, say you have no photo of it. At most " +
+        "two photos per reply.",
+      parameters: {
+        type: "object",
+        properties: {
+          imageUrl: {
+            type: "string",
+            description: "The URL from the answer's \"Image:\" line, exactly as listed. Never a \"Link:\".",
+          },
+          caption: {
+            type: "string",
+            description: "Optional short caption under the photo, e.g. the product name and price.",
+          },
+        },
+        required: ["imageUrl"],
+      },
+    },
+  },
+  schema: z.object({
+    imageUrl: z
+      .string()
+      .trim()
+      .url()
+      .refine((u) => /^https?:\/\//i.test(u), "must be an http(s) URL"),
+    caption: z.string().trim().max(300).optional(),
+  }),
+  async run({ imageUrl, caption }, ctx) {
+    if (!ctx.attachments) {
+      return "Error: sendImage — photos cannot be attached in this context. Describe the product in words instead, and do not say a picture is coming.";
+    }
+    if (ctx.attachments.length >= MAX_IMAGES_PER_TURN) {
+      return `Error: sendImage — ${MAX_IMAGES_PER_TURN} photos are already queued for this reply, which is the limit. Offer to send more if the customer wants them.`;
+    }
+    if (ctx.attachments.some((a) => a.url === imageUrl)) {
+      return "Error: sendImage — that photo is already queued for this reply.";
+    }
+
+    // Defence in depth with the crawler's own guard (lib/knowledge/crawl.ts
+    // resolveImageUrl): the URL is fetched by the WhatsApp bridge from inside
+    // our network, so a private or link-local host is refused here too, even
+    // if a row somehow came to carry one.
+    if (isPrivateHost(new URL(imageUrl).hostname)) {
+      return "Error: sendImage — that image address cannot be reached from a chat channel. Tell the customer you have no photo of it to send.";
+    }
+
+    // The model may only send what the business actually published. A URL it
+    // typed from memory — a competitor's CDN, a hallucinated path, another
+    // tenant's upload — is refused, and the check carries the organizationId so
+    // an image URL that happens to exist on a different tenant's FAQ does not
+    // pass either. Read-only, so the sandbox runs it too.
+    const known = await prisma.faq.findFirst({
+      where: { organizationId: ctx.organizationId, imageUrl },
+      select: { id: true },
+    });
+    if (!known) {
+      // Replayed against the live tenant, the model's first instinct was to
+      // pass the product page (the Link) here. Name that mistake, or it tries
+      // the same URL again next turn.
+      return "Error: sendImage — that URL is not on any answer's \"Image:\" line, so it cannot be sent. A \"Link:\" is a web page, not a photo. Use the Image URL from the answer you are quoting; if that answer has no Image line, tell the customer you do not have a photo of it to send, and give them the Link instead.";
+    }
+
+    // Queued in dryRun as well: the array is in-memory, not the database, and it
+    // is how the sandbox shows what would have gone out and enforces the cap.
+    ctx.attachments.push({ url: imageUrl, ...(caption ? { caption } : {}) });
+
+    if (ctx.dryRun) {
+      return `(sandbox) Would send image ${imageUrl}${caption ? ` with caption "${caption}"` : ""}.`;
+    }
+    return (
+      `Photo queued: it will be delivered to the customer right after your reply` +
+      `${caption ? ` with the caption "${caption}"` : ""}. ` +
+      `Tell them you are sending the picture — do not describe it as unavailable.`
+    );
+  },
+});
+
 // Order is fixed on purpose — the tool list is part of the prompt prefix that
 // providers cache, and a re-ordered list silently stops matching (CLAUDE.md §5).
+// New tools go LAST for the same reason.
 const REGISTRY: Record<string, ToolImpl> = {
   alertHuman,
   captureContact,
   tagContact,
   scheduleFollowUp,
   bookMeeting,
+  sendImage,
 };
 
-const TOOL_ORDER = ["alertHuman", "captureContact", "tagContact", "scheduleFollowUp", "bookMeeting"];
+const TOOL_ORDER = [
+  "alertHuman",
+  "captureContact",
+  "tagContact",
+  "scheduleFollowUp",
+  "bookMeeting",
+  "sendImage",
+];
 
 export interface ToolDefOptions {
   /** Drop tools by name — an agent with no calendar has no business booking one. */

@@ -163,14 +163,14 @@ Start with Telegram. It is a day's work, needs nobody's permission, and proves t
 ### Prompt assembly (order matters — the stable part must come first)
 
 ```
-[1] System: persona, goal, company info, rules, conversation flow   ← identical every call
-[2] Knowledge: top-k retrieved FAQs for this message                ← varies
+[1] System: persona, goal, company info, rules, flow, tools guidance, how-to-write   ← identical every call (first system message + tool list)
+[2] Knowledge: top-k retrieved FAQs, with Link/Image lines — its OWN system message   ← varies per turn
 [3] Contact: name, tags, prior summary
-[4] History: recent turns verbatim, older turns summarised
+[4] History: recent turns verbatim (a sent photo replayed as "[sent photo: url]"), older turns summarised
 [5] The new message
 ```
 
-**Sections 1 and 2 are the cache prefix.** Keep them byte-identical between calls in a conversation or prompt caching silently stops working and costs jump ~10×. Never put a timestamp, a random ID, or a re-ordered FAQ list in the prefix.
+**Section 1 is the cache prefix** (narrowed 18 Sep 2026 — it was "1 and 2"). Keep it byte-identical between calls in a conversation or prompt caching silently stops working and costs jump ~10×: never a timestamp, a random ID, or per-turn data in the first system message, and never re-order the tool list (new tools are appended last). Section 2 is deliberately outside the prefix: retrieval now reads the recent turns too (`buildRetrievalQuery` in `lib/ai/agent.ts`), so the FAQ set legitimately shifts as the conversation moves, and inside the first message every shift would have thrown the cached instructions away. It still keeps a stable order (`lib/knowledge/retrieve.ts`) so that when the set repeats, the cache extends over it.
 
 ### Conversation realism — cheap to copy, and most of why DM Champ reads as human
 

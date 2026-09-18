@@ -6,8 +6,21 @@ export type ThreadMessage = {
   id: string;
   direction: "INBOUND" | "OUTBOUND";
   body: string;
+  /** A photo the agent sent; the body is its caption (often empty). */
+  mediaUrl?: string | null;
   stamp: string;
 };
+
+/** Only an absolute http(s) URL is drawn — never javascript: or data:. */
+function safeImageUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    return u.protocol === "http:" || u.protocol === "https:" ? u.href : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * The message list, pinned to the newest message.
@@ -36,12 +49,26 @@ export default function ChatThread({ messages }: { messages: ThreadMessage[] }) 
 
   return (
     <div className="thread-body" ref={ref}>
-      {messages.map((m) => (
-        <div key={m.id} className={`bubble ${m.direction === "INBOUND" ? "in" : "out"}`}>
-          {m.body}
-          <span className="stamp">{m.stamp}</span>
-        </div>
-      ))}
+      {messages.map((m) => {
+        // A colleague taking over has to SEE the photo the agent sent, or they
+        // answer "is this the one with the golden border?" blind.
+        const img = safeImageUrl(m.mediaUrl);
+        return (
+          <div key={m.id} className={`bubble ${m.direction === "INBOUND" ? "in" : "out"}`}>
+            {img && (
+              // eslint-disable-next-line @next/next/no-img-element -- a remote URL from the tenant's own site; next/image would need every host allow-listed
+              <img
+                src={img}
+                alt={m.body || "photo"}
+                loading="lazy"
+                style={{ display: "block", maxWidth: "100%", maxHeight: 320, borderRadius: 8, marginBottom: m.body ? 6 : 0 }}
+              />
+            )}
+            {m.body}
+            <span className="stamp">{m.stamp}</span>
+          </div>
+        );
+      })}
       {messages.length === 0 && <div className="empty">No messages yet.</div>}
     </div>
   );

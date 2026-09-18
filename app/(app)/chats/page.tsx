@@ -58,6 +58,7 @@ export default async function Chats({
       id: m.id,
       direction: m.direction,
       body: m.body,
+      mediaUrl: m.mediaUrl,
       stamp:
         m.createdAt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) +
         (m.aiGenerated ? " · AI" : m.direction === "OUTBOUND" ? " · you" : ""),
@@ -87,7 +88,9 @@ export default async function Chats({
                 <span className="nm">{c.contact.name ?? c.contact.phone ?? "Unknown visitor"}</span>
                 <span className="tm">{timeAgo(c.lastMessageAt)}</span>
               </div>
-              <div className="pv">{c.messages[0]?.body ?? "No messages yet"}</div>
+              <div className="pv">
+                {c.messages[0]?.body || (c.messages[0]?.mediaUrl ? "📷 Photo" : "No messages yet")}
+              </div>
               <div className="meta">
                 <span className="pill mute">{CHANNEL_LABEL[c.channel.kind]}</span>
                 {c.state === "HUMAN_ACTIVE" && <span className="pill warn">needs you</span>}

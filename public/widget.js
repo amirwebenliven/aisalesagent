@@ -73,6 +73,8 @@
     ".zc-msg{max-width:82%;padding:9px 12px;border-radius:14px;white-space:pre-wrap;word-wrap:break-word;overflow-wrap:anywhere}" +
     ".zc-agent{background:#fff;border:1px solid #e5e7eb;border-bottom-left-radius:4px;align-self:flex-start}" +
     ".zc-user{background:" + accent + ";color:#fff;border-bottom-right-radius:4px;align-self:flex-end}" +
+    ".zc-img{display:block;max-width:100%;height:auto;border-radius:10px}" +
+    ".zc-cap{margin-top:6px}" +
     ".zc-note{align-self:center;font-size:12px;color:#6b7280}" +
     ".zc-dots{align-self:flex-start;background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:11px 13px;display:none;gap:4px}" +
     ".zc-dots.on{display:flex}" +
@@ -116,10 +118,52 @@
   // --- rendering ---
   // textContent only: these bodies are other people's words coming back out of
   // our database onto a customer's page, and innerHTML would make that XSS.
-  function bubble(role, text) {
+  //
+  // An image reply is the same rule applied to a URL: only an ABSOLUTE http(s)
+  // URL is ever assigned to src, so a stored "javascript:" or "data:" string
+  // renders as nothing rather than as code, and a relative path cannot resolve
+  // against the customer's domain (our images never live there).
+  function safeImageUrl(url) {
+    if (typeof url !== "string" || !url) return null;
+    try {
+      var u = new URL(url);
+      return u.protocol === "http:" || u.protocol === "https:" ? u.href : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Returns the element, or null when there was nothing to show — an empty
+  // bubble reads as a glitch, so a message with no text and no usable image
+  // is skipped rather than drawn.
+  function bubble(role, text, mediaUrl) {
+    var src = safeImageUrl(mediaUrl);
+    text = typeof text === "string" ? text : "";
+    if (!src && !text) return null;
+
     var el = document.createElement("div");
     el.className = "zc-msg " + (role === "user" ? "zc-user" : "zc-agent");
-    el.textContent = text;
+
+    if (src) {
+      var img = document.createElement("img");
+      img.className = "zc-img";
+      img.src = src;
+      img.alt = text || "image";
+      img.setAttribute("loading", "lazy");
+      // The log scrolls to the bottom when the bubble lands, but the image
+      // lands later and grows the bubble under the fold — scroll again then.
+      img.addEventListener("load", function () { log.scrollTop = log.scrollHeight; });
+      el.appendChild(img);
+      if (text) {
+        var cap = document.createElement("div");
+        cap.className = "zc-cap";
+        cap.textContent = text;
+        el.appendChild(cap);
+      }
+    } else {
+      el.textContent = text;
+    }
+
     log.insertBefore(el, dots);
     log.scrollTop = log.scrollHeight;
     return el;
@@ -155,7 +199,7 @@
           if (seen[m.id]) return;
           seen[m.id] = 1;
           cursor = m.at;
-          if (render) { bubble(m.role, m.text); added++; }
+          if (render) { bubble(m.role, m.text, m.mediaUrl); added++; }
         });
         return added;
       })
@@ -212,7 +256,13 @@
 
         if (d.replies && d.replies.length) {
           typing(false);
-          d.replies.forEach(function (t) { bubble("agent", t); });
+          // Newer servers send { text, mediaUrl? } per reply; older ones a plain
+          // string. Accept both, because this file is cached by customers'
+          // browsers and by CDNs and will not roll over in step with the server.
+          d.replies.forEach(function (r) {
+            if (typeof r === "string") bubble("agent", r);
+            else if (r) bubble("agent", r.text, r.mediaUrl);
+          });
           sync(false);           // swallow the server's copies, advance the cursor
         } else if (d.human) {
           typing(false);

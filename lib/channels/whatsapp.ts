@@ -320,6 +320,49 @@ async function deleteSession(session: string): Promise<void> {
 }
 
 /**
+ * End the pairing for good: log the session out — when it is WORKING, WAHA
+ * removes the device from the phone's Linked devices — then delete it, and
+ * forget everything this row knew about the number. Conversations stay; the row
+ * stays (a ChannelConnection cascades to every message, so deleting it would
+ * erase the customer's history). Reconnecting reuses the row.
+ *
+ * Fails LOUDLY when the bridge cannot be reached. A row marked DISCONNECTED
+ * while the phone is still linked would be exactly the "Disconnect that quietly
+ * only pauses" the Channels card used to warn about — and WAHA would keep
+ * delivering the customer's messages to a webhook that now answers 410. WAHA
+ * saying 404 (session already gone) or 422 (never paired, nothing to log out
+ * of) is success.
+ */
+export async function disconnectWhatsApp(connection: ChannelConnection): Promise<ChannelConnection> {
+  // The session name IS the row id (see connectWhatsApp); the credentials say so
+  // too when they exist, and are gone after a previous disconnect.
+  const session = connection.credentialsEnc ? whatsappCredentials(connection).session : connection.id;
+
+  try {
+    await wahaCall("POST", `/api/sessions/${encodeURIComponent(session)}/logout`);
+  } catch (e) {
+    if (!(e instanceof Error && /\((404|422)\)/.test(e.message))) throw e;
+  }
+  await deleteSession(session);
+
+  return prisma.channelConnection.update({
+    where: { id: connection.id },
+    data: {
+      status: "DISCONNECTED",
+      // The HMAC key and header secret die with the session. externalId keeps
+      // the number, so the card can still say which one used to be here.
+      credentialsEnc: null,
+      // A fresh pairing starts a fresh ramp. Re-pairing the SAME number a week
+      // later then under-uses it for a while — the safe direction to err in.
+      warmupStartedAt: null,
+      dailySendCap: null,
+      lastErrorAt: null,
+      lastErrorMessage: null,
+    },
+  });
+}
+
+/**
  * Create the WAHA session, point it at us, and hand back a connection whose
  * status the UI can poll until a phone scans the code.
  *
@@ -652,6 +695,56 @@ function phoneFromJid(jid: string): string | undefined {
 
 const MAX_MESSAGE_CHARS = 4000;
 
+/**
+ * WhatsApp caps a media caption at 1024 characters and rejects the WHOLE
+ * message past it — the photo would not arrive either. Plain text bubbles
+ * are not affected; their limit is far higher.
+ */
+const MAX_CAPTION_CHARS = 1024;
+
+/**
+ * The image types WhatsApp renders inline, by file extension. Anything else
+ * is declared as image/jpeg: WAHA's own docs say WhatsApp works best with
+ * JPEG, and what we send are product photos the shop already serves from its
+ * site, so declaring the type is enough. We deliberately do NOT download and
+ * convert — that would put an image library and a second fetch in the send
+ * path for a case that has not come up.
+ */
+const IMAGE_MIME_BY_EXT: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  gif: "image/gif",
+};
+
+/**
+ * The last path segment of the URL when it looks like a file name, else null.
+ * Next.js `/_next/image?url=…` and CDN resize endpoints carry no extension in
+ * the path (the crawled shop is one of them), so this returns null there and
+ * the caller falls back to a generic name — WhatsApp wants SOME name.
+ */
+function fileNameFromUrl(url: string): string | null {
+  try {
+    const last = new URL(url).pathname.split("/").filter(Boolean).pop() ?? "";
+    const name = decodeURIComponent(last).trim();
+    return /^[^\s/\\]+\.[A-Za-z0-9]{2,5}$/.test(name) ? name : null;
+  } catch {
+    return null;
+  }
+}
+
+/** WAHA's `file` object for sendImage. WAHA fetches the URL itself; we only declare what it will find. */
+function imageFile(url: string): { url: string; mimetype: string; filename: string } {
+  const filename = fileNameFromUrl(url);
+  const ext = filename?.split(".").pop()?.toLowerCase() ?? "";
+  return {
+    url,
+    mimetype: IMAGE_MIME_BY_EXT[ext] ?? "image/jpeg",
+    filename: filename ?? "image.jpg",
+  };
+}
+
 export const whatsappAdapter: ChannelAdapter = {
   id: "whatsapp",
 
@@ -742,14 +835,27 @@ export const whatsappAdapter: ChannelAdapter = {
       return {};
     }
 
-    const sent = await wahaCall<WaMessage>("POST", "/api/sendText", {
-      session,
-      chatId: to,
-      text: msg.text,
-      // A preview fetches the link, renders a card and makes a two-line answer
-      // look like an advert. Off by default here; Telegram does the same.
-      linkPreview: false,
-    });
+    // A photo with its caption is ONE WhatsApp message, so it has already
+    // passed the same allowance check as a text bubble — the guard above is per
+    // send() call, and this is one call. Both endpoints answer with the same
+    // WAMessage shape, so the id handling below is shared.
+    const sent = msg.mediaUrl
+      ? await wahaCall<WaMessage>("POST", "/api/sendImage", {
+          session,
+          chatId: to,
+          file: imageFile(msg.mediaUrl),
+          // An image-only message has an empty body; WAHA wants the key absent,
+          // not "".
+          caption: msg.text ? msg.text.slice(0, MAX_CAPTION_CHARS) : undefined,
+        })
+      : await wahaCall<WaMessage>("POST", "/api/sendText", {
+          session,
+          chatId: to,
+          text: msg.text,
+          // A preview fetches the link, renders a card and makes a two-line answer
+          // look like an advert. Off by default here; Telegram does the same.
+          linkPreview: false,
+        });
 
     // Same namespace as inbound ids and never colliding — WhatsApp ids carry a
     // fromMe prefix, so ours begin "true_" and a customer's "false_".

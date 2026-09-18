@@ -136,6 +136,10 @@ enum ChannelStatus {
   ACTIVE
   PAUSED
   FAILED
+  // The provider link is ended and the credentials wiped, but the row and its
+  // conversations stay: deleting a ChannelConnection cascades to every message
+  // a customer ever sent through it. Reconnecting reuses the row.
+  DISCONNECTED
 }
 
 model ChannelConnection {
@@ -321,6 +325,11 @@ model Faq {
   question       String  @db.Text
   answer         String  @db.Text
   sourceUrl      String?
+
+  // The ONE representative photo of the page this FAQ came from (a product's
+  // photo, not a listing's). The agent's sendImage tool may only send a URL
+  // that exists here for its own tenant — so this column is also the allow-list.
+  imageUrl String?
 
   // Hand-written FAQs outrank generated ones at retrieval time.
   isManual Boolean @default(false)

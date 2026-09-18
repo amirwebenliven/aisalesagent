@@ -53,14 +53,16 @@ async function handleInbound(job: InboundJob): Promise<void> {
     return;
   }
 
+  const photos = result.replies.filter((r) => r.mediaUrl).length;
   log(
-    `[inbound] ${job.conversationId} → ${result.replies.length} bubble(s), ` +
+    `[inbound] ${job.conversationId} → ${result.replies.length - photos} bubble(s)` +
+      `${photos ? ` + ${photos} photo(s)` : ""}, ` +
       `${result.toolCalls.map((t) => t.name).join("+") || "no tools"}, ` +
       `${ms}ms, $${result.costUsd.toFixed(6)}`,
   );
 
-  // The bubbles are already persisted, so the inbox and the widget's poll have
-  // them either way. This is the push out to the provider.
+  // The bubbles and photos are already persisted, so the inbox and the widget's
+  // poll have them either way. This is the push out to the provider.
   const conversation = await prisma.conversation.findFirst({
     where: { id: job.conversationId, organizationId: job.organizationId },
     include: { channel: true },
@@ -75,10 +77,11 @@ async function handleInbound(job: InboundJob): Promise<void> {
 
   // The pause before the first bubble is most of why a good agent does not read
   // as a bot (CLAUDE.md §5). The widget adapter's send is a deliberate no-op —
-  // its visitor is already watching — so this costs nothing there.
+  // its visitor is already watching — so this costs nothing there. The replies
+  // arrive text-first, photos last, and go out in that order.
   await new Promise((r) => setTimeout(r, result.delayMs));
   const ids = await sendBubbles(conversation.channel, to, result.replies, { gapMs: 1200 });
-  log(`  → sent ${ids.length || result.replies.length} bubble(s) via ${conversation.channel.kind}`);
+  log(`  → sent ${ids.length || result.replies.length} message(s) via ${conversation.channel.kind}`);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -140,7 +143,7 @@ async function runScheduledJob(job: {
     });
 
     const to = replyAddress(conversation.id, conversation.channelConnectionId);
-    if (to) await sendBubbles(conversation.channel, to, [message]);
+    if (to) await sendBubbles(conversation.channel, to, [{ text: message }]);
     log(`[sweep] follow-up ${job.id} → ${to ? "sent" : "persisted only"}: ${message.slice(0, 100)}`);
     return;
   }

@@ -101,7 +101,7 @@ export async function ingestSource(opts: IngestOptions): Promise<IngestResult> {
     // database, and 40 pages would mean 40 of both.
     const cfg = await resolveModelConfig(organizationId);
 
-    const rows: { question: string; answer: string; sourceUrl: string }[] = [];
+    const rows: { question: string; answer: string; sourceUrl: string; imageUrl: string | null }[] = [];
     const failures: string[] = [];
 
     await pool(crawl.pages, GENERATE_CONCURRENCY, async (page) => {
@@ -110,7 +110,11 @@ export async function ingestSource(opts: IngestOptions): Promise<IngestResult> {
           cfg,
           maxPairs: opts.maxPairsPerPage ?? 6,
         });
-        for (const f of faqs) rows.push({ ...f, sourceUrl: page.url });
+        // The photo belongs to the PAGE, so every FAQ generated from it carries
+        // the same one: "what is the price of X?" and "what fabric is X?" both
+        // point at X's photo. It is null, not absent, when the crawler found
+        // nothing it could stand behind — a listing page, a text-only page.
+        for (const f of faqs) rows.push({ ...f, sourceUrl: page.url, imageUrl: page.imageUrl ?? null });
       } catch (e) {
         // One page that the model choked on must not cost us the other 39.
         const reason = e instanceof Error ? e.message : String(e);
@@ -143,6 +147,7 @@ export async function ingestSource(opts: IngestOptions): Promise<IngestResult> {
           question: r.question,
           answer: r.answer,
           sourceUrl: r.sourceUrl,
+          imageUrl: r.imageUrl,
         })),
       });
       return tx.faq.count({ where: { organizationId, sourceId } });

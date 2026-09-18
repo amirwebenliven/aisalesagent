@@ -20,6 +20,9 @@ import type { ChannelAdapter, InboundMessage, OutboundMessage, SendResult } from
 
 const API = "https://api.telegram.org";
 
+/** Bot API limit for a media caption. Same number as WhatsApp's, by coincidence. */
+const MAX_CAPTION_CHARS = 1024;
+
 export interface TelegramCredentials {
   botToken: string;
   secretToken: string;
@@ -215,13 +218,37 @@ export function usesWebhook(): boolean {
   return /^https:\/\//.test(env.APP_URL);
 }
 
-/** Stop Telegram calling us — used when a channel is paused or deleted. */
-export async function disconnectTelegram(connection: ChannelConnection): Promise<void> {
+/**
+ * Stop Telegram calling us.
+ *
+ * Pause (default) keeps the token so Resume can re-register the webhook.
+ * `forget` is the real disconnect: the webhook goes, the token is wiped and the
+ * row is DISCONNECTED — the bot answers nothing until a token is pasted again.
+ * Conversations stay either way. The worker's poller stops itself on the next
+ * loop because the row is no longer ACTIVE.
+ *
+ * When forgetting, a token Telegram already rejects (the bot was deleted or the
+ * token revoked in BotFather) is not an obstacle: there is no webhook left to
+ * remove, and the whole point is to let go of it. Any other failure — no
+ * network, Telegram down — still throws, so the row is not marked disconnected
+ * while Telegram may still be calling.
+ */
+export async function disconnectTelegram(
+  connection: ChannelConnection,
+  opts: { forget?: boolean } = {},
+): Promise<void> {
   const { botToken } = telegramCredentials(connection);
-  await tgCall(botToken, "deleteWebhook", { drop_pending_updates: true });
+  try {
+    await tgCall(botToken, "deleteWebhook", { drop_pending_updates: true });
+  } catch (e) {
+    const revoked = e instanceof Error && /unauthorized|not found/i.test(e.message);
+    if (!(opts.forget && revoked)) throw e;
+  }
   await prisma.channelConnection.update({
     where: { id: connection.id },
-    data: { status: "PAUSED" },
+    data: opts.forget
+      ? { status: "DISCONNECTED", credentialsEnc: null, lastErrorAt: null, lastErrorMessage: null }
+      : { status: "PAUSED" },
   });
 }
 
@@ -281,7 +308,15 @@ export const telegramAdapter: ChannelAdapter = {
 
     const sent = await tgCall<TgMessage>(botToken, msg.mediaUrl ? "sendPhoto" : "sendMessage", {
       chat_id: to,
-      ...(msg.mediaUrl ? { photo: msg.mediaUrl, caption: msg.text } : { text: msg.text }),
+      ...(msg.mediaUrl
+        ? {
+            photo: msg.mediaUrl,
+            // Telegram refuses a caption over 1024 characters ("message caption
+            // is too long") and the photo goes down with it. Text messages get
+            // 4096, which the bubble splitter already respects.
+            caption: msg.text ? msg.text.slice(0, MAX_CAPTION_CHARS) : undefined,
+          }
+        : { text: msg.text }),
       link_preview_options: { is_disabled: true },
     });
 

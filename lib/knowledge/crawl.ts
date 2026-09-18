@@ -16,6 +16,12 @@ export interface CrawledPage {
   url: string;
   title: string;
   text: string;
+  /**
+   * ONE image that is the page's subject — a product's photo — or absent.
+   * Never a guess: a listing page with thirty product photos gets none,
+   * because a wrong photo on every FAQ from that page is worse than no photo.
+   */
+  imageUrl?: string;
 }
 
 export interface CrawlOptions {
@@ -45,6 +51,24 @@ const MIN_TEXT_CHARS = 200;
 /** Bound memory: 40 pages × this is what we hold at once. */
 const MAX_TEXT_CHARS = 20_000;
 const MAX_HTML_BYTES = 3_000_000;
+
+/** An <img> alt must share this many real words with the title/h1 to count as the page's photo. */
+const MIN_ALT_OVERLAP = 2;
+/** width/height attributes below this are thumbnails, swatches and tracking pixels. */
+const TINY_IMAGE_PX = 100;
+/** The same image on more pages than this is site furniture, not any page's subject. */
+const MAX_PAGES_PER_IMAGE = 2;
+/** In src, alt or class — chrome, not content. */
+const DECORATIVE_IMAGE = /logo|icon|sprite|avatar|placeholder|badge/i;
+/** In preference order: a site that sets these has already chosen the page's picture. */
+const META_IMAGE_SELECTORS = [
+  'meta[property="og:image"]',
+  'meta[property="og:image:secure_url"]',
+  'meta[name="og:image"]',
+  'meta[name="twitter:image"]',
+  'meta[name="twitter:image:src"]',
+  'meta[property="twitter:image"]',
+];
 
 // Extension filter is the cheap first pass; Content-Type is the authoritative
 // second one (plenty of HTML pages have no extension at all).
@@ -79,7 +103,7 @@ export function assertCrawlableUrl(raw: string): URL {
   return u;
 }
 
-function isPrivateHost(host: string): boolean {
+export function isPrivateHost(host: string): boolean {
   const h = host.toLowerCase().replace(/^\[|\]$/g, "");
   if (h === "localhost" || h.endsWith(".localhost") || h.endsWith(".local") || h.endsWith(".internal")) {
     return true;
@@ -222,8 +246,16 @@ function canonical(u: URL): string {
  * "HomeAbout usContact" is what you get from a nav — hence the explicit newline
  * injection before extraction, and dropping the chrome elements entirely.
  */
-export function extractContent(html: string, url: string): { title: string; text: string } {
+export function extractContent(
+  html: string,
+  url: string,
+): { title: string; text: string; imageUrl?: string } {
   const $ = cheerio.load(html);
+
+  // Read BEFORE the chrome goes: many themes put the page's <h1> inside a
+  // <header class="page-header">, and it is the best name we have for matching
+  // an image to the page below.
+  const h1 = $("h1").first().text();
 
   $(
     "script, style, noscript, template, svg, iframe, nav, header, footer, aside, form, " +
@@ -232,6 +264,10 @@ export function extractContent(html: string, url: string): { title: string; text
   ).remove();
 
   const title = ($("title").first().text() || $("h1").first().text() || new URL(url).pathname).trim();
+
+  // After the chrome is stripped (so a header logo can never be a candidate)
+  // and before the newline injection below rewrites the tree.
+  const imageUrl = pickPageImage($, url, h1, title);
 
   $("br").replaceWith("\n");
   $("p, div, section, article, li, tr, td, th, h1, h2, h3, h4, h5, h6, blockquote, pre, dt, dd").append("\n");
@@ -248,8 +284,171 @@ export function extractContent(html: string, url: string): { title: string; text
     .trim()
     .slice(0, MAX_TEXT_CHARS);
 
-  return { title: title.replace(/\s+/g, " ").slice(0, 300), text };
+  return { title: title.replace(/\s+/g, " ").slice(0, 300), text, imageUrl };
 }
+
+/**
+ * ONE image that IS the page's subject, or nothing.
+ *
+ * The <img> whose alt text names the page comes first — matches the h1 (or, with
+ * no h1, the title's own segment) exactly, or shares two or more real words with
+ * it. Then the social-card tags. That order is deliberate: og:image is very
+ * often a site-wide default set once in the layout (Next.js `openGraph.images`,
+ * Yoast's fallback card), and on a shop with one default card every product
+ * page would carry the same picture — dropSiteWideImages then clears them all,
+ * and the product photo that was sitting in the page was never looked at. An
+ * alt that matches the page name is the page telling us what it shows.
+ *
+ * The alt rule is also what keeps a listing page empty: its thirty product
+ * photos are all genuine, and none of them is called "Shop". Every doubt here
+ * resolves to `undefined`, because a photo the agent sends that is not what the
+ * customer asked about costs more trust than no photo.
+ *
+ * The h1 is the page naming itself. The <title> also carries the site name
+ * ("Shop | IZHAANA Enterprises"), and on a listing page those two brand words
+ * would match every product alt that mentions the brand — so when there is no
+ * h1 only the title's FIRST segment is used, never the site-name tail.
+ */
+function pickPageImage($: cheerio.CheerioAPI, pageUrl: string, h1: string, title: string): string | undefined {
+  const named = pickNamedImage($, pageUrl, h1, title);
+  if (named) return named;
+
+  for (const sel of META_IMAGE_SELECTORS) {
+    const src = resolveImageUrl($(sel).first().attr("content"), pageUrl);
+    if (src && !looksDecorative(src, "", "")) return src;
+  }
+  return undefined;
+}
+
+/** The first content <img> whose alt text names the page — see pickPageImage. */
+function pickNamedImage($: cheerio.CheerioAPI, pageUrl: string, h1: string, title: string): string | undefined {
+  const candidates = (h1.trim() ? [h1] : title.split(/\s*[|»·]\s*/).slice(0, 1))
+    .map((n) => n.trim())
+    .filter(Boolean);
+  const exact = new Set(candidates.map(normaliseName).filter(Boolean));
+  const wordSets = candidates.map(nameWords).filter((w) => w.size > 0);
+  if (!wordSets.length && !exact.size) return undefined;
+
+  const main = $("main").first();
+  const article = $("article").first();
+  const root = main.length ? main : article.length ? article : $("body");
+
+  for (const el of root.find("img").toArray()) {
+    const img = $(el);
+    const alt = (img.attr("alt") ?? "").trim();
+    if (!alt) continue; // nothing ties an unlabelled image to this page
+    if (isTiny(img.attr("width")) || isTiny(img.attr("height"))) continue;
+
+    // Lazy-loading themes leave `src` empty or pointing at a 1px stub and put
+    // the real file in data-src or srcset; any candidate of the set unwraps to
+    // the same original.
+    const raw =
+      img.attr("src") ||
+      img.attr("data-src") ||
+      img.attr("data-lazy-src") ||
+      firstSrcsetUrl(img.attr("srcset") || img.attr("data-srcset"));
+    const src = resolveImageUrl(raw, pageUrl);
+    if (!src || looksDecorative(src, alt, img.attr("class") ?? "")) continue;
+
+    if (exact.has(normaliseName(alt))) return src;
+    const altWords = nameWords(alt);
+    if (wordSets.some((ws) => overlapCount(altWords, ws) >= MIN_ALT_OVERLAP)) return src;
+  }
+
+  return undefined;
+}
+
+/**
+ * Absolute http(s) URL for an image reference, or undefined. Relative paths
+ * resolve against the page; inline data: URIs and anything that is not a web
+ * URL are dropped — a chat channel has to fetch this by URL later.
+ */
+function resolveImageUrl(raw: string | undefined, pageUrl: string): string | undefined {
+  const s = (raw ?? "").trim();
+  if (!s || /^data:/i.test(s)) return undefined;
+  let u: URL;
+  try {
+    u = unwrapImageOptimizer(new URL(s, pageUrl));
+  } catch {
+    return undefined;
+  }
+  if (u.protocol !== "http:" && u.protocol !== "https:") return undefined;
+  // The stored URL is fetched later by the WhatsApp bridge from INSIDE our
+  // Docker network. assertCrawlableUrl guards only the start URL; a page the
+  // tenant controls can point og:image at 169.254.169.254 or an internal host,
+  // and unwrapImageOptimizer would hand over an inner private URL just as
+  // readily. Not gated on NODE_ENV — there is no development reason to attach a
+  // private image to a customer's FAQ. Default ports only, for the same reason.
+  if (isPrivateHost(u.hostname) || u.port !== "") return undefined;
+  u.hash = "";
+  return u.href;
+}
+
+/**
+ * Image optimisers wrap the real file: Next.js serves
+ * `/_next/image?url=<encoded original>&w=3840&q=75`, and most CDN proxy modes
+ * take the same `url=` parameter. The wrapper answers only on the site's own
+ * host, at a width negotiated for one screen — the original is what WhatsApp
+ * or Telegram can actually fetch. Unwrapped repeatedly because optimisers get
+ * chained (a site proxy in front of a CDN proxy); three is plenty.
+ */
+function unwrapImageOptimizer(u: URL): URL {
+  for (let i = 0; i < 3; i++) {
+    const inner = u.searchParams.get("url"); // already percent-decoded
+    if (!inner) break;
+    // An arbitrary URL's `url=` is trusted only when it is plainly a URL. Next's
+    // own endpoint is also allowed a site-relative path ("/images/a.jpg"),
+    // which it serves from its own origin.
+    const isNext = u.pathname.includes("/_next/image");
+    if (!/^https?:\/\//i.test(inner) && !(isNext && inner.startsWith("/"))) break;
+    try {
+      u = new URL(inner, u.origin);
+    } catch {
+      break;
+    }
+  }
+  return u;
+}
+
+/** `src` must already be an absolute http(s) URL (see resolveImageUrl). */
+function looksDecorative(src: string, alt: string, cls: string): boolean {
+  const u = new URL(src);
+  if (u.pathname.toLowerCase().endsWith(".svg")) return true;
+  // Path and query only, not the host: a shop at silicon-something.com must not
+  // lose every photo it has to the word "icon".
+  return DECORATIVE_IMAGE.test(`${u.pathname}${u.search} ${alt} ${cls}`);
+}
+
+function isTiny(attr: string | undefined): boolean {
+  const n = Number.parseFloat(attr ?? ""); // "100%" → 100, "auto" → NaN: neither is tiny
+  return Number.isFinite(n) && n > 0 && n < TINY_IMAGE_PX;
+}
+
+function firstSrcsetUrl(srcset: string | undefined): string | undefined {
+  return srcset?.split(",")[0]?.trim().split(/\s+/)[0] || undefined;
+}
+
+/** Lowercased, punctuation collapsed to single spaces — for exact comparison. */
+function normaliseName(s: string): string {
+  return s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+}
+
+/** Words worth counting as overlap: three letters or more, and not glue. */
+function nameWords(s: string): Set<string> {
+  return new Set(
+    normaliseName(s)
+      .split(" ")
+      .filter((w) => w.length >= 3 && !NAME_GLUE.has(w)),
+  );
+}
+
+function overlapCount(a: Set<string>, b: Set<string>): number {
+  let n = 0;
+  for (const w of a) if (b.has(w)) n++;
+  return n;
+}
+
+const NAME_GLUE = new Set(["the", "and", "for", "with", "from", "our", "your", "this", "that"]);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sitemap
@@ -425,7 +624,24 @@ export async function crawlSite(startUrl: string, opts: CrawlOptions = {}): Prom
 
   await Promise.all(Array.from({ length: concurrency }, worker));
 
-  return { pages: pages.slice(0, maxPages), discovery, skipped, stoppedBy };
+  return { pages: dropSiteWideImages(pages.slice(0, maxPages)), discovery, skipped, stoppedBy };
+}
+
+/**
+ * An image on more than MAX_PAGES_PER_IMAGE pages is site furniture — a default
+ * og:image, a banner, the "featured product" every page shows — not any of
+ * those pages' subject. Extraction sees one page at a time and cannot tell;
+ * the crawl can. Dropping it costs at most one photo per page; keeping it puts
+ * the wrong photo on every FAQ from every one of them.
+ */
+export function dropSiteWideImages(pages: CrawledPage[]): CrawledPage[] {
+  const pagesPerImage = new Map<string, number>();
+  for (const p of pages) {
+    if (p.imageUrl) pagesPerImage.set(p.imageUrl, (pagesPerImage.get(p.imageUrl) ?? 0) + 1);
+  }
+  return pages.map((p) =>
+    p.imageUrl && (pagesPerImage.get(p.imageUrl) ?? 0) > MAX_PAGES_PER_IMAGE ? { ...p, imageUrl: undefined } : p,
+  );
 }
 
 interface Visit {
@@ -455,7 +671,7 @@ async function visit(url: string, timeoutMs: number): Promise<Visit> {
   if (length > MAX_HTML_BYTES) return { reason: `too large (${length} bytes)`, links: [] };
 
   const html = (await res.text()).slice(0, MAX_HTML_BYTES);
-  const { title, text } = extractContent(html, finalUrl.href);
+  const { title, text, imageUrl } = extractContent(html, finalUrl.href);
 
   const $ = cheerio.load(html);
   const links = $("a[href]")
@@ -465,5 +681,5 @@ async function visit(url: string, timeoutMs: number): Promise<Visit> {
 
   if (text.length < MIN_TEXT_CHARS) return { reason: `only ${text.length} chars of text`, links };
 
-  return { page: { url: finalUrl.href, title, text }, links };
+  return { page: { url: finalUrl.href, title, text, imageUrl }, links };
 }

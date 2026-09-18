@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import type { ChannelConnection } from "@prisma/client";
 import { prisma } from "../db";
 import { decryptJson, encryptJson } from "../crypto";
@@ -56,20 +57,41 @@ export async function ensureWidgetConnection(params: {
     orderBy: { createdAt: "asc" },
   });
 
-  const connection =
-    existing ??
-    (await prisma.channelConnection.create({
-      data: {
-        organizationId: params.organizationId,
-        agentId: params.agentId ?? null,
-        kind: "WIDGET",
-        displayName: params.displayName ?? "Website widget",
-        status: "ACTIVE",
-        credentialsEnc: params.settings ? encryptJson(params.settings) : null,
-      },
-    }));
+  const connection = existing
+    ? existing.status === "DISCONNECTED"
+      ? // Reconnecting after a disconnect: the secret was already rotated when
+        // it was disconnected, so the snippet handed back below is a new one and
+        // the old embed stays dead.
+        await prisma.channelConnection.update({
+          where: { id: existing.id },
+          data: { status: "ACTIVE", agentId: params.agentId ?? existing.agentId, lastErrorAt: null, lastErrorMessage: null },
+        })
+      : existing
+    : await prisma.channelConnection.create({
+        data: {
+          organizationId: params.organizationId,
+          agentId: params.agentId ?? null,
+          kind: "WIDGET",
+          displayName: params.displayName ?? "Website widget",
+          status: "ACTIVE",
+          credentialsEnc: params.settings ? encryptJson(params.settings) : null,
+        },
+      });
 
   return { connection, embed: widgetEmbedSnippet(connection.webhookSecret) };
+}
+
+/**
+ * Disable the embed. The secret is public by design — it sits in the customer's
+ * page source — so "disconnect" has to make the OLD snippet stop working, not
+ * just flip a flag the snippet never reads: the secret is rotated, and the old
+ * one 404s from now on. Connect again issues a fresh snippet. Conversations stay.
+ */
+export async function disconnectWidget(connection: ChannelConnection): Promise<ChannelConnection> {
+  return prisma.channelConnection.update({
+    where: { id: connection.id },
+    data: { status: "DISCONNECTED", webhookSecret: randomBytes(16).toString("hex") },
+  });
 }
 
 export function widgetEmbedSnippet(webhookSecret: string): string {
@@ -118,6 +140,8 @@ export const widgetAdapter: ChannelAdapter = {
 
   // No push transport. The agent's reply is persisted as an OUTBOUND Message
   // and delivered either in the POST response or by the widget's next poll.
+  // That covers image replies too: the row's mediaUrl travels with its body,
+  // so there is nothing here to relay and nothing that could drop it.
   async send(): Promise<SendResult> {
     return {};
   },

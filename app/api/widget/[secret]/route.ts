@@ -22,6 +22,7 @@ export const dynamic = "force-dynamic";
  * slow model never leaves a browser hanging.
  *
  *   POST  { visitorId, message, clientMessageId?, name?, email?, page? }
+ *         → { replies: [{ text, mediaUrl? }], pending }  text bubbles first, then photos
  *   GET   ?visitorId=…&after=<iso>   → messages since the cursor (history + late replies)
  */
 
@@ -103,6 +104,12 @@ export async function POST(req: Request, ctx: { params: Promise<{ secret: string
   if (connection.status === "PAUSED") {
     return NextResponse.json({ ok: false, error: "Widget paused" }, { status: 409, headers });
   }
+  // Disconnecting rotates the embed secret, so a disconnected row is normally
+  // unreachable here already (the old snippet 404s). Belt and braces for a
+  // snippet copied in the seconds between the two writes.
+  if (connection.status === "DISCONNECTED") {
+    return NextResponse.json({ ok: false, error: "Widget disconnected" }, { status: 410, headers });
+  }
 
   const raw = await req.json().catch(() => null);
   const msg = widgetAdapter.parseInbound(raw);
@@ -147,7 +154,12 @@ export async function POST(req: Request, ctx: { params: Promise<{ secret: string
     {
       ok: true,
       messageId: result.messageId,
-      replies: dispatch.replies,
+      // Objects, not strings: a reply is a bubble ({ text }) or a photo
+      // ({ text: caption, mediaUrl }). Built explicitly so the wire shape is
+      // exactly what the header documents, whatever the agent adds internally.
+      replies: dispatch.replies.map((r) =>
+        r.mediaUrl ? { text: r.text, mediaUrl: r.mediaUrl } : { text: r.text },
+      ),
       // Nothing to show yet: either the agent module isn't wired up, or it is
       // still working. Either way the widget polls GET from here.
       pending: dispatch.replies.length === 0,
@@ -171,6 +183,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ secret: string 
   if (originBlocked(connection, origin)) {
     return NextResponse.json({ ok: false, error: "Origin not allowed" }, { status: 403, headers });
   }
+  if (connection.status === "DISCONNECTED") {
+    return NextResponse.json({ ok: false, error: "Widget disconnected" }, { status: 410, headers });
+  }
 
   const url = new URL(req.url);
   const visitorId = url.searchParams.get("visitorId")?.trim();
@@ -192,16 +207,19 @@ export async function GET(req: Request, ctx: { params: Promise<{ secret: string 
     },
     orderBy: { createdAt: "asc" },
     take: 50,
-    select: { id: true, direction: true, body: true, createdAt: true },
+    select: { id: true, direction: true, body: true, mediaUrl: true, createdAt: true },
   });
 
   return NextResponse.json(
     {
       ok: true,
+      // Same { text, mediaUrl? } shape as POST's replies, so a photo that landed
+      // after POST gave up waiting renders the same way when the poll finds it.
       messages: messages.map((m) => ({
         id: m.id,
         role: m.direction === "INBOUND" ? "user" : "agent",
         text: m.body,
+        ...(m.mediaUrl ? { mediaUrl: m.mediaUrl } : {}),
         at: m.createdAt.toISOString(),
       })),
     },

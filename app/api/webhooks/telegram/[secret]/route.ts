@@ -30,6 +30,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ secret: string
     return NextResponse.json({ ok: false, error: "Unknown webhook" }, { status: 404 });
   }
 
+  // Disconnected: the token is wiped, so verify() below has nothing to check
+  // against. The webhook was deleted at disconnect; this is for a call already
+  // in flight. 410 — Telegram must not retry it.
+  if (connection.status === "DISCONNECTED") {
+    return NextResponse.json({ ok: false, error: "Channel disconnected" }, { status: 410 });
+  }
+
   // The path segment is not authentication — URLs turn up in proxy logs. The
   // header is what proves this is Telegram.
   if (!(await telegramAdapter.verify?.(req, connection))) {

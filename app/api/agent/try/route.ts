@@ -6,8 +6,8 @@ import { env } from "@/lib/env";
 import { currentOrg } from "@/lib/tenant";
 import { resolveModelConfig, type ChatMessage } from "@/lib/ai/client";
 import { buildMessages, splitReply } from "@/lib/ai/prompt";
-import { runToolLoop } from "@/lib/ai/agent";
-import { getToolDefs } from "@/lib/ai/tools";
+import { retrieveFaqsForTurn, runToolLoop } from "@/lib/ai/agent";
+import { getToolDefs, type ToolContext } from "@/lib/ai/tools";
 
 /**
  * The Try-it-out tab.
@@ -85,12 +85,15 @@ export async function POST(req: Request) {
     );
   }
 
-  const faqs = await prisma.faq.findMany({
-    where: { organizationId: org.id },
-    orderBy: [{ isManual: "desc" }, { useCount: "desc" }, { id: "asc" }],
-    take: 8,
-    select: { question: true, answer: true },
-  });
+  const history = toHistory(parsed.data.history);
+
+  // The same retrieval the live turn runs — this message plus the recent turns,
+  // same ranking, same fallback. The tab used to show the top eight FAQs by
+  // useCount regardless of the question, so "what does the saree cost?" was
+  // tested against eight answers about something else, and sendImage could
+  // never find an Image URL to validate against. Read-only: useCount is only
+  // bumped by the live turn's settleSpend.
+  const faqs = await retrieveFaqsForTurn(org.id, parsed.data.message, history, 8);
 
   // A contact that exists only for the length of this request.
   const sandboxContact: Contact = {
@@ -112,17 +115,20 @@ export async function POST(req: Request) {
     contact: sandboxContact,
     conversation: { summary: null },
     faqs,
-    history: toHistory(parsed.data.history),
+    history,
     incoming: parsed.data.message,
   });
 
   try {
     const cfg = await resolveModelConfig(org.id);
+    // dryRun is what makes the tools describe themselves instead of firing.
+    // attachments is in-memory only: it lets sendImage validate the URL and
+    // enforce its cap, and is how the tab shows which photos would have gone.
+    const ctx: ToolContext = { organizationId: org.id, dryRun: true, attachments: [] };
     const loop = await runToolLoop({
       cfg,
       messages,
-      // dryRun is what makes the tools describe themselves instead of firing.
-      ctx: { organizationId: org.id, dryRun: true },
+      ctx,
       tools: getToolDefs(),
       model: agent.modelOverride ?? undefined,
       // No onResult: recordUsage would write a row, and this persists nothing.
@@ -131,6 +137,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       bubbles: loop.text ? splitReply(loop.text, agent.splitMessages ? agent.maxRepliesPerTurn : 1) : [],
+      attachments: ctx.attachments ?? [],
       toolCalls: loop.toolCalls,
       usage: loop.usage,
       costUsd: loop.costUsd,
