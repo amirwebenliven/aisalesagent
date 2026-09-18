@@ -31,7 +31,7 @@ import { prisma } from "../lib/db";
 import { env } from "../lib/env";
 import { resolveModelConfig } from "../lib/ai/client";
 import { buildMessages, splitReply } from "../lib/ai/prompt";
-import { buildRetrievalQuery, retrieveFaqsForTurn, runToolLoop } from "../lib/ai/agent";
+import { buildRetrievalQuery, nextStickyFaqIds, retrieveFaqsForTurn, runToolLoop } from "../lib/ai/agent";
 import { getToolDefs, type ToolContext } from "../lib/ai/tools";
 
 const [orgNeedle, turnsPath] = process.argv.slice(2);
@@ -127,6 +127,9 @@ console.log(
 // Accumulate the real back-and-forth so each reply — and each retrieval — sees
 // the prior turns, exactly as runAgentTurn's history does.
 const history: { direction: "INBOUND" | "OUTBOUND"; body: string; createdAt: Date }[] = [];
+// What a live conversation keeps in Conversation.contextFaqIds — carried the
+// same way here, so a replay's turn 7 sees the FAQs its turn 2 was answered from.
+let sticky: string[] = [];
 let totalCost = 0;
 
 for (const text of turns) {
@@ -134,11 +137,12 @@ for (const text of turns) {
 
   // The exact retrieval the live turn runs. The context query is printed so a
   // wrong FAQ set can be traced to the words that produced it.
-  const faqs = await retrieveFaqsForTurn(org.id, text, history, 8);
+  const faqs = await retrieveFaqsForTurn(org.id, text, history, 8, { sticky });
+  sticky = nextStickyFaqIds(faqs, sticky);
   const query = buildRetrievalQuery(text, history);
   console.log(`     · context query: ${query.length > 120 ? `${query.slice(0, 117)}…` : query || "(none)"}`);
   for (const f of faqs) {
-    const flags = [f.isManual && "manual", f.imageUrl && "image", f.sourceUrl && "link"]
+    const flags = [f.isManual && "manual", f.score === 0.5 && "sticky", f.imageUrl && "image", f.sourceUrl && "link"]
       .filter(Boolean)
       .join(",");
     console.log(`     · faq ${f.score.toFixed(2)} ${flags ? `[${flags}] ` : ""}${f.question}`);

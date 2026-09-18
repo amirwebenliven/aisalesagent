@@ -158,7 +158,17 @@ export async function runToolLoop(opts: ToolLoopOptions): Promise<ToolLoopResult
 
 /** Sized for retrieve.ts: plainto_tsquery over more than this is all noise. */
 const RETRIEVAL_QUERY_MAX_CHARS = 600;
-const RETRIEVAL_CONTEXT_INBOUND = 3;
+/**
+ * Five, not three: a real WhatsApp customer sends "are you there?", "please
+ * send the price", "hello?" — three turns of filler that carry no words and
+ * pushed the product out of a three-turn window on the first live test.
+ */
+const RETRIEVAL_CONTEXT_INBOUND = 5;
+const RETRIEVAL_CONTEXT_OUTBOUND = 2;
+/** How many FAQs a conversation remembers between turns (Conversation.contextFaqIds). */
+const STICKY_FAQS_KEPT = 8;
+/** How many of those get a guaranteed slot in the next turn's knowledge block. */
+const STICKY_FAQS_SLOTS = 3;
 
 /**
  * Chat filler that must not reach the ranker. lib/knowledge/retrieve.ts keeps
@@ -201,20 +211,25 @@ const RETRIEVAL_FILLER = new Set([
  * lib/knowledge/retrieve.ts needs from us. Exported so scripts/replay.ts runs
  * the identical query and cannot drift from the live path.
  */
-export function buildRetrievalQuery(
-  incoming: string,
-  history: Pick<Message, "direction" | "body">[],
-): string {
+export type RetrievalHistoryItem = Pick<Message, "direction" | "body"> & { aiGenerated?: boolean };
+
+export function buildRetrievalQuery(incoming: string, history: RetrievalHistoryItem[]): string {
   const inbound = history
     .filter((m) => m.direction === "INBOUND")
     .slice(-RETRIEVAL_CONTEXT_INBOUND)
     .reverse();
-  // The last outbound WITH words: a photo row's body is its caption, often
-  // empty, and an empty "last reply" would throw away exactly the signal this
-  // function exists to capture — the product named in the FAQ's own words.
-  const lastOutbound = [...history].reverse().find((m) => m.direction === "OUTBOUND" && m.body.trim());
 
-  const sources = [incoming, lastOutbound?.body ?? "", ...inbound.map((m) => m.body)];
+  // The agent's last replies WITH words. A photo row's body is its caption,
+  // often empty; a colleague's "hi" from the inbox is a reply too but names
+  // nothing. The AI's own replies are the ones written from the knowledge base,
+  // so they are preferred — a human's outbound only counts when there is no AI
+  // reply at all (the history rows the sandbox and replay build carry no
+  // aiGenerated flag, and every outbound there is the agent's).
+  const outbound = history.filter((m) => m.direction === "OUTBOUND" && m.body.trim()).reverse();
+  const ai = outbound.filter((m) => m.aiGenerated !== false);
+  const recentReplies = (ai.length ? ai : outbound).slice(0, RETRIEVAL_CONTEXT_OUTBOUND);
+
+  const sources = [incoming, ...recentReplies.map((m) => m.body), ...inbound.map((m) => m.body)];
 
   // Dedupe on the bare word — "Saree", "saree," and "saree?" are one term to
   // the ranker and three to a naive Set — but emit the word as typed, so what
@@ -259,9 +274,19 @@ export function buildRetrievalQuery(
  * the 62 generic ones. With no history the two queries are the same and the
  * second pass is skipped.
  *
- * Then the house fallback: when neither pass matches anything, the model still
- * does better with the business's best answers in front of it than with an
- * empty knowledge section.
+ * Then the STICKY rows — the FAQs this conversation's earlier turns were
+ * answered from (Conversation.contextFaqIds, newest first). Text windows have a
+ * horizon; a customer does not. On the first live test the product was named,
+ * then came seven turns of "please send the price" / "are you there?", and by
+ * the time a colleague handed the thread back nothing in the last five turns
+ * said "saree" — so the saree's price FAQ ranked eighth behind six handkerchief
+ * prices and the model escalated again. The FAQs already used are the
+ * conversation's subject; they keep a few guaranteed slots until the customer
+ * moves on and the literal matches crowd them out.
+ *
+ * Then the house fallback: when nothing matches at all, the model still does
+ * better with the business's best answers in front of it than with an empty
+ * knowledge section.
  *
  * Was a dynamic import behind a catch-all while the knowledge track was being
  * written in parallel; that also swallowed real query errors and erased the
@@ -274,20 +299,42 @@ export function buildRetrievalQuery(
 export async function retrieveFaqsForTurn(
   organizationId: string,
   incoming: string,
-  history: Pick<Message, "direction" | "body">[],
+  history: RetrievalHistoryItem[],
   take: number,
+  opts: { sticky?: string[] } = {},
 ): Promise<RetrievedFaq[]> {
   const literal = buildRetrievalQuery(incoming, []);
   const contextual = buildRetrievalQuery(incoming, history);
 
-  const direct = await rankFaqs(organizationId, literal, take);
-  const inContext =
-    contextual !== literal ? await rankFaqs(organizationId, contextual, take) : [];
+  const stickyIds = (opts.sticky ?? []).slice(0, STICKY_FAQS_KEPT);
+  const [direct, inContext, stickyRows] = await Promise.all([
+    rankFaqs(organizationId, literal, take),
+    contextual !== literal ? rankFaqs(organizationId, contextual, take) : Promise.resolve([] as RetrievedFaq[]),
+    stickyIds.length
+      ? prisma.faq.findMany({
+          // organizationId in the WHERE: the ids come from our own row, but a
+          // refresh may have deleted them and nothing here may ever read another
+          // tenant's FAQ by a stale id.
+          where: { organizationId, id: { in: stickyIds } },
+          select: { id: true, question: true, answer: true, sourceUrl: true, imageUrl: true, isManual: true },
+        })
+      : Promise.resolve([]),
+  ]);
 
-  // Literal matches first (up to half), then context, then whatever literal
-  // matches are left. Dedupe on id — the same FAQ usually tops both lists.
-  // Deterministic given deterministic inputs, which keeps the knowledge block
-  // byte-identical when nothing about the conversation has changed.
+  // Stored order = newest first; findMany returns any order.
+  const byId = new Map(stickyRows.map((f) => [f.id, f]));
+  const sticky: RetrievedFaq[] = stickyIds
+    .map((id) => byId.get(id))
+    .filter((f): f is NonNullable<typeof f> => Boolean(f))
+    // score 0.5: below any real match, above the fallback's 0 — a row is here
+    // because it mattered a turn ago, not because it matched this turn.
+    .map((f) => ({ ...f, score: 0.5 }));
+
+  // Literal matches first (up to half), then the sticky rows (a few slots),
+  // then context, then whatever literal and sticky matches are left. Dedupe on
+  // id — the same FAQ usually tops several lists. Deterministic given
+  // deterministic inputs, which keeps the knowledge block byte-identical when
+  // nothing about the conversation has changed.
   const directShare = Math.ceil(take / 2);
   const picked: RetrievedFaq[] = [];
   const seen = new Set<string>();
@@ -297,8 +344,10 @@ export async function retrieveFaqsForTurn(
     picked.push(f);
   };
   direct.slice(0, directShare).forEach(add);
+  sticky.slice(0, STICKY_FAQS_SLOTS).forEach(add);
   inContext.forEach(add);
   direct.slice(directShare).forEach(add);
+  sticky.slice(STICKY_FAQS_SLOTS).forEach(add);
   if (picked.length) return picked;
 
   const fallback = await prisma.faq.findMany({
@@ -447,7 +496,8 @@ export async function runAgentTurn(args: RunAgentTurnArgs): Promise<AgentTurnRes
     take: 40,
     // mediaUrl too: a photo the agent sent is replayed to the model as a note
     // (see buildMessages), otherwise it cannot tell it already sent one.
-    select: { direction: true, body: true, createdAt: true, mediaUrl: true },
+    // aiGenerated: retrieval prefers the AI's own replies over a colleague's.
+    select: { direction: true, body: true, createdAt: true, mediaUrl: true, aiGenerated: true },
   });
   const history = recent.reverse();
 
@@ -460,7 +510,9 @@ export async function runAgentTurn(args: RunAgentTurnArgs): Promise<AgentTurnRes
     history.pop();
   }
 
-  const faqs = await retrieveFaqsForTurn(organizationId, args.incomingText, history, 8);
+  const faqs = await retrieveFaqsForTurn(organizationId, args.incomingText, history, 8, {
+    sticky: convo.contextFaqIds,
+  });
 
   const cfg = await resolveModelConfig(organizationId);
   const messages = buildMessages({
@@ -523,7 +575,7 @@ export async function runAgentTurn(args: RunAgentTurnArgs): Promise<AgentTurnRes
 
   // Whatever happened, the tokens were spent — record them before deciding what
   // to do about it.
-  await settleSpend(convo.id, loop.costUsd, faqs, organizationId);
+  await settleSpend(convo.id, loop.costUsd, faqs, organizationId, convo.contextFaqIds);
 
   // ── Capped ────────────────────────────────────────────────────────────────
   if (loop.stopped === "blocked") {
@@ -728,18 +780,35 @@ function toOutbound(turn: Pick<AgentTurnResult, "bubbles" | "attachments">): Out
   ];
 }
 
-/** Conversation totals + FAQ credit. Runs whether or not a reply came out. */
+/**
+ * The FAQs the next turn should still see: this turn's MATCHED rows (score > 0
+ * — the house fallback is background, not the conversation's subject) in
+ * prompt order, then what was remembered before, deduped and capped. Exported
+ * for scripts/replay.ts, so a replay carries context between turns exactly as
+ * a live conversation does.
+ */
+export function nextStickyFaqIds(faqs: RetrievedFaq[], previous: string[]): string[] {
+  const matched = faqs.filter((f) => f.score > 0).map((f) => f.id);
+  return [...new Set([...matched, ...previous])].slice(0, STICKY_FAQS_KEPT);
+}
+
+/** Conversation totals + FAQ credit + sticky context. Runs whether or not a reply came out. */
 async function settleSpend(
   conversationId: string,
   costUsd: number,
   faqs: RetrievedFaq[],
   organizationId: string,
+  previousSticky: string[],
 ): Promise<void> {
   const faqIds = faqs.map((f) => f.id).filter(Boolean);
   await prisma.$transaction([
     prisma.conversation.update({
       where: { id: conversationId },
-      data: { lastMessageAt: new Date(), totalCostUsd: { increment: costUsd } },
+      data: {
+        lastMessageAt: new Date(),
+        totalCostUsd: { increment: costUsd },
+        contextFaqIds: nextStickyFaqIds(faqs, previousSticky),
+      },
     }),
     // useCount is how a business sees which answers earn their place. Bumped for
     // what was put in front of the model, which is what "used" can mean without

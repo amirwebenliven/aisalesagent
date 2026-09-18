@@ -53,9 +53,14 @@ export interface PromptFaq {
   score?: number;
 }
 
-/** A history row. mediaUrl marks a photo the agent sent — replayed as a note. */
+/**
+ * A history row. mediaUrl marks a photo the agent sent — replayed as a note.
+ * aiGenerated tells retrieval whether an outbound row is the agent's own reply
+ * or a colleague's; the prompt itself renders both as the assistant.
+ */
 export type PromptHistoryItem = Pick<Message, "direction" | "body" | "createdAt"> & {
   mediaUrl?: string | null;
+  aiGenerated?: boolean;
 };
 
 export interface BuildPromptArgs {
@@ -150,6 +155,7 @@ export function buildSystemPrompt(args: BuildPromptArgs): string {
         `When asked for a link or where to buy, give the Link from the answer you used — as a plain URL, never markdown, because chat apps show the brackets.`,
         `When asked for a photo, call sendImage with that answer's Image URL and say you are sending it. A Link is a page, not a photo; if the answer has no Image, say you have no photo and give the Link.`,
         `NEVER write "hold on", "let me check", "I'll find out" or anything like it — you cannot look anything up unless you have a tool for it, and there is no later.`,
+        `If the customer asks again for something the answers cover — even if an earlier reply in this conversation promised a colleague or said it was not possible — answer it now from the answers. Never repeat a hand-off you already announced.`,
         `If the answer is genuinely not in your knowledge, say so plainly, and if the handover rules apply, call alertHuman.`,
         `Never invent prices, dates, stock or policies.`,
         `Ask one question at a time.`,

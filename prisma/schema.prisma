@@ -221,6 +221,13 @@ model Conversation {
   lastMessageAt DateTime  @default(now())
   closedAt      DateTime?
 
+  // The FAQs the model was given in this conversation's recent turns, newest
+  // first (lib/ai/agent.ts retrieveFaqsForTurn). A customer who named a product
+  // seven "are you there?" messages ago still means that product; text-only
+  // retrieval over the last few turns had lost it and fell back to generic
+  // price FAQs. Matched rows only — the house fallback never becomes sticky.
+  contextFaqIds String[] @default([])
+
   // Enforced against MAX_COST_USD_PER_CONVERSATION.
   totalCostUsd Decimal @default(0) @db.Decimal(10, 6)
 
